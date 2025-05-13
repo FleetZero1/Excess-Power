@@ -1,7 +1,0 @@
-[theme]
-base = "light"
-primaryColor = "#3B7C3F"                  # Green accents from car
-backgroundColor = "#E9ECEF"              # Very light gray (matches sky & wall)
-secondaryBackgroundColor = "#F8F9FA"     # Widget/card background (soft white)
-textColor = "#212529"                    # Charcoal black (legible)
-font = "sans serif"
