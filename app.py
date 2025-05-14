@@ -157,6 +157,19 @@ with tab1:
                 result["Capacity_kW"] = capacity_kw
                 result["Excess_Power_kW"] = result["Capacity_kW"] - result["Max_Power_kW"]
 
+                # ⚡ Multiple Level 3 charger sizes
+                st.markdown("#### 🔍 Level 3 Charger Feasibility (Multiple Sizes)")
+                charger_sizes_input = st.text_input(
+                    "Enter Level 3 charger sizes (kW), comma-separated", value="50, 100, 150", key=f"multi_l3_{uploaded_file.name}"
+                )
+
+                try:
+                    charger_sizes = [float(s.strip()) for s in charger_sizes_input.split(",")]
+                    for size in charger_sizes:
+                        result[f"L3_{int(size)}kW"] = result["Excess_Power_kW"].apply(lambda x: max(0, math.floor(x / size)))
+                except Exception:
+                    st.warning("⚠️ Invalid input for charger sizes. Use numbers separated by commas (e.g., 50, 100, 150).")
+
                 charger_strategy = st.radio(
                     f"Select charger input method for {uploaded_file.name}",
                     ["Auto-calculate both", "Input Level 2 Count", "Input Level 3 Count"],
