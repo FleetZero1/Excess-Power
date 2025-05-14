@@ -111,6 +111,9 @@ def process_wide_format(df):
 with tab1:
     uploaded_files = st.file_uploader("📁 Upload load profile files", type=["csv", "xlsx"], accept_multiple_files=True)
 
+    level2_kw = st.number_input("🔋 Global Level 2 Charger Size (kW)", min_value=1.0, value=7.2)
+    level3_kw = st.number_input("⚡ Global Level 3 Charger Size (kW)", min_value=10.0, value=50.0)
+
     if uploaded_files:
         for uploaded_file in uploaded_files:
             st.markdown("---")
@@ -128,59 +131,50 @@ with tab1:
                 else:
                     raw = pd.read_excel(uploaded_file, header=None)
                     header_row_index = None
-
                     for i in range(min(5, len(raw))):
                         row = raw.iloc[i].astype(str).str.lower()
                         if any('date' in cell for cell in row) and any(':' in cell for cell in row):
                             header_row_index = i
                             break
-
                     if header_row_index is not None:
                         df = pd.read_excel(uploaded_file, header=header_row_index)
                     else:
                         df = raw.copy()
 
-                raw_cols = df.columns.tolist()
-                time_like_cols = [col for col in raw_cols if isinstance(col, str) and ":" in col]
-                has_date = any("date" in str(col).lower() for col in raw_cols)
-                is_wide = has_date and len(time_like_cols) >= 20
-
-                result, error = process_wide_format(df) if is_wide else process_tall_format(df)
-
+                result, error = process_wide_format(df) if df.shape[1] > 10 else process_tall_format(df)
                 if error:
                     st.error(f"❌ {error}")
                     continue
 
                 result["Capacity_kW"] = capacity_kw
                 result["Excess_Power_kW"] = result["Capacity_kW"] - result["Max_Power_kW"]
+                result["L2_Global_Count"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level2_kw))
+                result["L3_Global_Count"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level3_kw))
 
-                st.markdown("#### 🔍 Level 3 Charger Feasibility (Multiple Sizes)")
-                charger_sizes_input = st.text_input(
-                    "Enter Level 3 charger sizes (kW), comma-separated",
-                    value="50, 100, 150",
-                    key=f"multi_l3_{uploaded_file.name}"
-                )
+                if st.checkbox(f"🔍 Check custom charger feasibility for {uploaded_file.name}", key=f"custom_{uploaded_file.name}"):
+                    st.markdown("**Enter custom charger sizes and desired counts**")
 
-                try:
-                    charger_sizes = [float(s.strip()) for s in charger_sizes_input.split(",")]
-                    for size in charger_sizes:
-                        result[f"L3_{int(size)}kW"] = result["Excess_Power_kW"].apply(lambda x: max(0, math.floor(x / size)))
-                except Exception:
-                    st.warning("⚠️ Invalid input for charger sizes. Use numbers separated by commas (e.g., 50, 100, 150).")
+                    custom_l2 = st.text_input("🔌 Level 2 chargers (size,count) e.g., 7.2:4, 11:2", key=f"l2_input_{uploaded_file.name}")
+                    custom_l3 = st.text_input("⚡ Level 3 chargers (size,count) e.g., 50:1, 150:2", key=f"l3_input_{uploaded_file.name}")
 
-                st.markdown("#### 🔍 Level 2 Charger Feasibility (Multiple Sizes)")
-                l2_sizes_input = st.text_input(
-                    "Enter Level 2 charger sizes (kW), comma-separated",
-                    value="7.2, 11",
-                    key=f"multi_l2_{uploaded_file.name}"
-                )
+                    def validate_chargers(input_str, label):
+                        try:
+                            chargers = [s.strip() for s in input_str.split(",") if ":" in s]
+                            for c in chargers:
+                                size, count = map(float, c.split(":"))
+                                total_kw = size * count
+                                result[f"{label}_{int(size)}kW_Count"] = int(count)
+                                result[f"{label}_{int(size)}kW_Used_kW"] = total_kw
+                                result[f"{label}_{int(size)}kW_Valid"] = result["Excess_Power_kW"] >= total_kw
+                                if not result[f"{label}_{int(size)}kW_Valid"].all():
+                                    st.error(f"❌ {label} {int(size)}kW charger x{int(count)} exceeds available power at some hours.")
+                        except Exception:
+                            st.warning(f"⚠️ Invalid format in {label} input. Use format like '50:2, 150:1'")
 
-                try:
-                    l2_sizes = [float(s.strip()) for s in l2_sizes_input.split(",")]
-                    for size in l2_sizes:
-                        result[f"L2_{int(size)}kW"] = result["Excess_Power_kW"].apply(lambda x: max(0, math.floor(x / size)))
-                except Exception:
-                    st.warning("⚠️ Invalid input for Level 2 sizes. Use numbers separated by commas (e.g., 7.2, 11).")
+                    if custom_l2:
+                        validate_chargers(custom_l2, "L2_Custom")
+                    if custom_l3:
+                        validate_chargers(custom_l3, "L3_Custom")
 
                 st.dataframe(result)
 
@@ -217,20 +211,14 @@ with tab2:
 
     **3. Enter site details**
     - For each site, enter the **utility power capacity (in kW)**
+    - You can use default charger sizes or enter your own custom ones
 
     **4. Review output**
     - The tool will calculate:
-        - Hourly maximum demand
+        - Hourly max demand
         - Excess available power
-        - Number of Level 2 / Level 3 chargers that can be supported
-    - View line charts and download analysis CSVs
-
-    ---
-    ### 🧮 Calculation Rules
-
-    - 15-min kWh data → `Power = Energy / 0.25`
-    - 1-hour kWh data → `Power = Energy / 1.0`
-    - Chargers = `Excess Power / Charger kW`
+        - Max chargers that can be supported
+    - Optionally test your own charger setup
 
     ---
     ### 📎 Need Help?
@@ -249,10 +237,6 @@ We help **light to heavy duty fleets** navigate their route to **zero emissions*
 - 🔌 Charging infrastructure design and analysis
 - 🧠 Data-driven operational insights
 - 🛠 Turnkey transition support
-
-Our **sustainable and experienced team** removes the complexity so you can focus on staying on the road.
-
----
 
 📍 **Website**: [fleetzero.ai](https://fleetzero.ai)  
 📧 **Email**: [info@fleetzero.ai](mailto:info@fleetzero.ai)
