@@ -127,23 +127,24 @@ with tab1:
 
             try:
                 if uploaded_file.name.endswith(".csv"):
-    df = pd.read_csv(uploaded_file)
-else:
-    raw = pd.read_excel(uploaded_file, header=None)
-    header_row_index = None
+                    df = pd.read_csv(uploaded_file)
+                else:
+                    raw = pd.read_excel(uploaded_file, header=None)
+                    header_row_index = None
 
-    # Search first 5 rows for 'Date' and time headers
-    for i in range(min(5, len(raw))):
-        row = raw.iloc[i].astype(str).str.lower()
-        if any('date' in cell for cell in row) and any(':' in cell for cell in row):
-            header_row_index = i
-            break
+                    # Search first 5 rows for 'Date' and time headers
+                    for i in range(min(5, len(raw))):
+                        row = raw.iloc[i].astype(str).str.lower()
+                        if any('date' in cell for cell in row) and any(':' in cell for cell in row):
+                            header_row_index = i
+                            break
 
-    if header_row_index is not None:
-        df = pd.read_excel(uploaded_file, header=header_row_index)
-    else:
-        df = raw.copy()
-                raw_cols = df.iloc[0].tolist() if not all(isinstance(col, str) for col in df.columns) else df.columns.tolist()
+                    if header_row_index is not None:
+                        df = pd.read_excel(uploaded_file, header=header_row_index)
+                    else:
+                        df = raw.copy()
+
+                raw_cols = df.columns.tolist()
                 time_like_cols = [col for col in raw_cols if isinstance(col, str) and ":" in col]
                 has_date = any("date" in str(col).lower() for col in raw_cols)
                 is_wide = has_date and len(time_like_cols) >= 20
@@ -219,9 +220,11 @@ with tab2:
 with tab3:
     st.header("🌱 About Fleet Zero")
     st.markdown("""
-    We are sustainable and experienced advisors
-    FleetZero is your trusted advisor and solution provider for your fleet transition journey. We help light to heavy duty fleets navigate their route to zero emissions. 
-    Our turnkey solutions remove the emission transition headache to keep you on the road.
+    Fleet Zero is committed to powering the future of electric fleets through smart, scalable, and data-driven infrastructure tools.
+
+    - 🌍 Sustainable mobility
+    - 🔌 EV readiness
+    - 📊 Infrastructure planning
 
     **Website**: [fleetzero.ai](https://fleetzero.ai)  
     **Email**: [Info@fleetzero.ai](mailto:info@fleetzero.ai)
