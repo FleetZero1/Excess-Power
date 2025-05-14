@@ -111,9 +111,6 @@ def process_wide_format(df):
 with tab1:
     uploaded_files = st.file_uploader("📁 Upload load profile files", type=["csv", "xlsx"], accept_multiple_files=True)
 
-    level2_kw = st.number_input("🔋 Level 2 Charger (kW)", min_value=1.0, value=7.2)
-    level3_kw = st.number_input("⚡ Level 3 Charger (kW)", min_value=10.0, value=50.0)
-
     if uploaded_files:
         for uploaded_file in uploaded_files:
             st.markdown("---")
@@ -220,7 +217,6 @@ with tab2:
 
     **3. Enter site details**
     - For each site, enter the **utility power capacity (in kW)**
-    - Set your Level 2 and Level 3 charger sizes (these apply to all files)
 
     **4. Review output**
     - The tool will calculate:
