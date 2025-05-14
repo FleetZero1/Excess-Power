@@ -72,6 +72,7 @@ def process_wide_format(df):
             df = df[1:].copy()
 
         df = df.rename(columns={df.columns[0]: "date"})
+        
         time_cols = [col for col in df.columns if isinstance(col, str) and ":" in col]
         daily_total_col = next((col for col in df.columns if 'total' in str(col).lower() or 'kwh' in str(col).lower()), None)
 
@@ -106,33 +107,12 @@ def process_wide_format(df):
     except Exception as e:
         return None, f"Error in wide format: {e}"
 
-def compute_optimal_mix(result, charger_sizes, label_prefix):
-    charger_sizes = sorted([int(s) for s in charger_sizes], reverse=True)
-    for size in charger_sizes:
-        result[f"Opt_{label_prefix}_{size}kW"] = 0
-    result[f"Opt_{label_prefix}_Used_kW"] = 0
-    result[f"Opt_{label_prefix}_Remaining_kW"] = result["Excess_Power_kW"]
-
-    for i, row in result.iterrows():
-        remaining = row["Excess_Power_kW"]
-        used = 0
-        combo = {}
-        for size in charger_sizes:
-            count = math.floor(remaining / size)
-            used += count * size
-            remaining -= count * size
-            combo[size] = count
-        for size in charger_sizes:
-            result.at[i, f"Opt_{label_prefix}_{size}kW"] = combo[size]
-        result.at[i, f"Opt_{label_prefix}_Used_kW"] = used
-        result.at[i, f"Opt_{label_prefix}_Remaining_kW"] = remaining
-
 # === TAB 1: ANALYZER ===
 with tab1:
     uploaded_files = st.file_uploader("📁 Upload load profile files", type=["csv", "xlsx"], accept_multiple_files=True)
 
-    level2_kw = st.number_input("🔋 Global Level 2 Charger Size (kW)", min_value=1.0, value=7.2)
-    level3_kw = st.number_input("⚡ Global Level 3 Charger Size (kW)", min_value=10.0, value=50.0)
+    level2_kw = st.number_input("🔋 Level 2 Charger (kW)", min_value=1.0, value=7.2)
+    level3_kw = st.number_input("⚡ Level 3 Charger (kW)", min_value=10.0, value=50.0)
 
     if uploaded_files:
         for uploaded_file in uploaded_files:
@@ -146,8 +126,28 @@ with tab1:
             )
 
             try:
-                df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file, header=None)
-                is_wide = df.shape[1] > 10 and df.iloc[1].astype(str).str.contains("Date", case=False, na=False).any()
+                if uploaded_file.name.endswith(".csv"):
+                    df = pd.read_csv(uploaded_file)
+                else:
+                    raw = pd.read_excel(uploaded_file, header=None)
+                    header_row_index = None
+
+                    for i in range(min(5, len(raw))):
+                        row = raw.iloc[i].astype(str).str.lower()
+                        if any('date' in cell for cell in row) and any(':' in cell for cell in row):
+                            header_row_index = i
+                            break
+
+                    if header_row_index is not None:
+                        df = pd.read_excel(uploaded_file, header=header_row_index)
+                    else:
+                        df = raw.copy()
+
+                raw_cols = df.columns.tolist()
+                time_like_cols = [col for col in raw_cols if isinstance(col, str) and ":" in col]
+                has_date = any("date" in str(col).lower() for col in raw_cols)
+                is_wide = has_date and len(time_like_cols) >= 20
+
                 result, error = process_wide_format(df) if is_wide else process_tall_format(df)
 
                 if error:
@@ -156,26 +156,32 @@ with tab1:
 
                 result["Capacity_kW"] = capacity_kw
                 result["Excess_Power_kW"] = result["Capacity_kW"] - result["Max_Power_kW"]
-                result["L2_Global_Count"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level2_kw))
-                result["L3_Global_Count"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level3_kw))
 
-                csv = result.to_csv(index=False).encode("utf-8")
-                st.download_button("📥 Download CSV", data=csv, file_name=f"{uploaded_file.name}_analysis.csv")
+                charger_strategy = st.radio(
+                    f"Select charger input method for {uploaded_file.name}",
+                    ["Auto-calculate both", "Input Level 2 Count", "Input Level 3 Count"],
+                    horizontal=True
+                )
 
-                if st.checkbox(f"🔍 Suggest optimal charger mix for {uploaded_file.name}?", key=f"optmix_toggle_{uploaded_file.name}"):
-                    opt_sizes_input = st.text_input(
-                        "Suggest optimal mix from these Level 3 sizes (kW)",
-                        value="150, 250",
-                        key=f"opt_l3_{uploaded_file.name}"
-                    )
+                if charger_strategy == "Input Level 3 Count":
+                    l3_count = st.number_input("Number of Level 3 Chargers", min_value=0, step=1, key=f"l3_{uploaded_file.name}")
+                    result["Used_L3_kW"] = l3_count * level3_kw
+                    result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L3_kW"]
+                    result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
+                    result["Level 2 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level2_kw))
+                    result["Level 3 Chargers"] = l3_count
 
-                    try:
-                        opt_sizes = [int(s.strip()) for s in opt_sizes_input.split(",") if s.strip().isdigit()]
-                        if opt_sizes:
-                            compute_optimal_mix(result, opt_sizes, "L3")
-                            st.success("✅ Optimal mix calculated.")
-                    except Exception:
-                        st.warning("⚠️ Could not process optimal mix sizes. Use numbers like 150,250")
+                elif charger_strategy == "Input Level 2 Count":
+                    l2_count = st.number_input("Number of Level 2 Chargers", min_value=0, step=1, key=f"l2_{uploaded_file.name}")
+                    result["Used_L2_kW"] = l2_count * level2_kw
+                    result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L2_kW"]
+                    result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
+                    result["Level 3 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level3_kw))
+                    result["Level 2 Chargers"] = l2_count
+
+                else:
+                    result["Level 2 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level2_kw))
+                    result["Level 3 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level3_kw))
 
                 st.dataframe(result)
 
@@ -188,5 +194,68 @@ with tab1:
                 ax.legend()
                 st.pyplot(fig)
 
+                csv = result.to_csv(index=False).encode("utf-8")
+                st.download_button("📥 Download CSV", data=csv, file_name=f"{uploaded_file.name}_analysis.csv")
+
             except Exception as e:
                 st.error(f"❌ Failed to process {uploaded_file.name}: {str(e)}")
+
+# === TAB 2: HOW TO USE ===
+with tab2:
+    st.header("📁 How to Use This Tool")
+    st.markdown("""
+    This tool helps you calculate **available power** at EV charging sites using load profile files and utility power input.
+
+    ---
+    ### 🛠 Step-by-Step Instructions
+
+    **1. Prepare your data**
+    - Use 15-minute or 1-hour interval load profile files (CSV or Excel)
+    - Ensure the first column is the **Date** and the rest are time intervals (e.g., `0:15`, `1:00`, ...)
+
+    **2. Upload files**
+    - Upload one or more usage files using the uploader under the **"📊 Analyzer" tab**
+
+    **3. Enter site details**
+    - For each site, enter the **utility power capacity (in kW)**
+    - Set your Level 2 and Level 3 charger sizes (these apply to all files)
+
+    **4. Review output**
+    - The tool will calculate:
+        - Hourly maximum demand
+        - Excess available power
+        - Number of Level 2 / Level 3 chargers that can be supported
+    - View line charts and download analysis CSVs
+
+    ---
+    ### 🧮 Calculation Rules
+
+    - 15-min kWh data → `Power = Energy / 0.25`
+    - 1-hour kWh data → `Power = Energy / 1.0`
+    - Chargers = `Excess Power / Charger kW`
+
+    ---
+    ### 📎 Need Help?
+
+    Contact **Fleet Zero** at: [info@fleetzero.ai](mailto:info@fleetzero.ai)
+    """)
+
+# === TAB 3: ABOUT ===
+with tab3:
+    st.header("🌱 About Fleet Zero")
+    st.markdown("""
+Fleet Zero is your trusted advisor and solution provider for your fleet transition journey.
+
+We help **light to heavy duty fleets** navigate their route to **zero emissions** by offering:
+- 🎯 Strategic fleet electrification planning
+- 🔌 Charging infrastructure design and analysis
+- 🧠 Data-driven operational insights
+- 🛠 Turnkey transition support
+
+Our **sustainable and experienced team** removes the complexity so you can focus on staying on the road.
+
+---
+
+📍 **Website**: [fleetzero.ai](https://fleetzero.ai)  
+📧 **Email**: [info@fleetzero.ai](mailto:info@fleetzero.ai)
+""")
