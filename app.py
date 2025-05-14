@@ -126,7 +126,23 @@ with tab1:
             )
 
             try:
-                df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file, header=None)
+                if uploaded_file.name.endswith(".csv"):
+    df = pd.read_csv(uploaded_file)
+else:
+    raw = pd.read_excel(uploaded_file, header=None)
+    header_row_index = None
+
+    # Search first 5 rows for 'Date' and time headers
+    for i in range(min(5, len(raw))):
+        row = raw.iloc[i].astype(str).str.lower()
+        if any('date' in cell for cell in row) and any(':' in cell for cell in row):
+            header_row_index = i
+            break
+
+    if header_row_index is not None:
+        df = pd.read_excel(uploaded_file, header=header_row_index)
+    else:
+        df = raw.copy()
                 raw_cols = df.iloc[0].tolist() if not all(isinstance(col, str) for col in df.columns) else df.columns.tolist()
                 time_like_cols = [col for col in raw_cols if isinstance(col, str) and ":" in col]
                 has_date = any("date" in str(col).lower() for col in raw_cols)
