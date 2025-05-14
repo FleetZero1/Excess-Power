@@ -43,7 +43,7 @@ def process_tall_format(df):
         if 'Unnamed: 1' in df.columns and df.iloc[0].astype(str).str.contains("DATE", case=False, na=False).any():
             df.columns = df.iloc[0]
             df = df[1:]
-        df.columns = [col.lower().strip() for col in df.columns]
+        df.columns = [col.lower().strip() if isinstance(col, str) else col for col in df.columns]
 
         if 'timestamp' in df.columns:
             df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
@@ -52,7 +52,7 @@ def process_tall_format(df):
         else:
             return None, "Missing 'timestamp' or 'date' + 'time' columns."
 
-        power_col = next((col for col in df.columns if 'kw' in col.lower()), None)
+        power_col = next((col for col in df.columns if isinstance(col, str) and 'kw' in col.lower()), None)
         if power_col is None:
             return None, "No 'kW' column found."
 
@@ -67,7 +67,6 @@ def process_tall_format(df):
 
 def process_wide_format(df):
     try:
-        # Standardize headers
         if df.iloc[0].astype(str).str.contains("Date", case=False, na=False).any():
             df.columns = df.iloc[0]
             df = df[1:].copy()
@@ -128,8 +127,10 @@ with tab1:
 
             try:
                 df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file, header=None)
-                time_like_cols = [col for col in df.columns if isinstance(col, str) and ":" in col]
-                is_wide = "Date" in df.columns or len(time_like_cols) >= 20
+                raw_cols = df.iloc[0].tolist() if not all(isinstance(col, str) for col in df.columns) else df.columns.tolist()
+                time_like_cols = [col for col in raw_cols if isinstance(col, str) and ":" in col]
+                has_date = any("date" in str(col).lower() for col in raw_cols)
+                is_wide = has_date and len(time_like_cols) >= 20
                 result, error = process_wide_format(df) if is_wide else process_tall_format(df)
 
                 if error:
@@ -202,11 +203,9 @@ with tab2:
 with tab3:
     st.header("🌱 About Fleet Zero")
     st.markdown("""
-    Fleet Zero is committed to powering the future of electric fleets through smart, scalable, and data-driven infrastructure tools.
-
-    - 🌍 Sustainable mobility
-    - 🔌 EV readiness
-    - 📊 Infrastructure planning
+    We are sustainable and experienced advisors
+    FleetZero is your trusted advisor and solution provider for your fleet transition journey. We help light to heavy duty fleets navigate their route to zero emissions. 
+    Our turnkey solutions remove the emission transition headache to keep you on the road.
 
     **Website**: [fleetzero.ai](https://fleetzero.ai)  
     **Email**: [Info@fleetzero.ai](mailto:info@fleetzero.ai)
