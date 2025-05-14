@@ -127,6 +127,11 @@ with tab1:
 
             tick_spacing = st.number_input("📏 X-axis Tick Interval (hours)", min_value=1, max_value=24, value=3, step=1, key=f"tick_{uploaded_file.name}")
 
+            st.markdown("### 📐 Y-axis Range (optional)")
+            y_min = st.number_input("Minimum Y-axis (kW)", min_value=0.0, value=0.0, step=1.0, key=f"ymin_{uploaded_file.name}")
+            y_max = st.number_input("Maximum Y-axis (kW)", min_value=0.0, value=0.0, step=1.0, key=f"ymax_{uploaded_file.name}")
+            use_y_limits = st.checkbox("Use custom Y-axis limits", key=f"useylim_{uploaded_file.name}")
+
             try:
                 if uploaded_file.name.endswith(".csv"):
                     df = pd.read_csv(uploaded_file)
@@ -184,6 +189,8 @@ with tab1:
                     ax2.set_xlabel("Hour")
                     ax2.set_ylabel("Power (kW)")
                     ax2.set_xticks(range(0, 24, tick_spacing))
+                    if use_y_limits and y_max > y_min:
+                        ax2.set_ylim(y_min, y_max)
                     ax2.set_title(f"{uploaded_file.name} – Custom Load vs Capacity")
                     ax2.legend()
                     st.pyplot(fig2)
@@ -223,6 +230,8 @@ with tab1:
                     ax.set_xlabel("Hour of Day")
                     ax.set_ylabel("Power (kW)")
                     ax.set_xticks(range(0, 24, tick_spacing))
+                    if use_y_limits and y_max > y_min:
+                        ax.set_ylim(y_min, y_max)
                     ax.set_title(f"{uploaded_file.name} - Usage vs Capacity")
                     ax.legend()
                     st.pyplot(fig)
