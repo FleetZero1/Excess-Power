@@ -107,7 +107,6 @@ def process_wide_format(df):
     except Exception as e:
         return None, f"Error in wide format: {e}"
 
-# === TAB 1: ANALYZER ===
 def compute_optimal_mix(result, charger_sizes, label_prefix):
     charger_sizes = sorted([int(s) for s in charger_sizes], reverse=True)
     for size in charger_sizes:
@@ -128,6 +127,8 @@ def compute_optimal_mix(result, charger_sizes, label_prefix):
             result.at[i, f"Opt_{label_prefix}_{size}kW"] = combo[size]
         result.at[i, f"Opt_{label_prefix}_Used_kW"] = used
         result.at[i, f"Opt_{label_prefix}_Remaining_kW"] = remaining
+
+# === TAB 1: ANALYZER ===
 with tab1:
     uploaded_files = st.file_uploader("📁 Upload load profile files", type=["csv", "xlsx"], accept_multiple_files=True)
 
@@ -149,17 +150,7 @@ with tab1:
                 if uploaded_file.name.endswith(".csv"):
                     df = pd.read_csv(uploaded_file)
                 else:
-                    raw = pd.read_excel(uploaded_file, header=None)
-                    header_row_index = None
-                    for i in range(min(5, len(raw))):
-                        row = raw.iloc[i].astype(str).str.lower()
-                        if any('date' in cell for cell in row) and any(':' in cell for cell in row):
-                            header_row_index = i
-                            break
-                    if header_row_index is not None:
-                        df = pd.read_excel(uploaded_file, header=header_row_index)
-                    else:
-                        df = raw.copy()
+                    df = pd.read_excel(uploaded_file, header=None)
 
                 result, error = process_wide_format(df) if df.shape[1] > 10 else process_tall_format(df)
                 if error:
@@ -171,56 +162,24 @@ with tab1:
                 result["L2_Global_Count"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level2_kw))
                 result["L3_Global_Count"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level3_kw))
 
-                if st.checkbox(f"🔍 Check custom charger feasibility for {uploaded_file.name}", key=f"custom_{uploaded_file.name}"):
-                    st.markdown("**Enter custom charger sizes and desired counts**")
+                csv = result.to_csv(index=False).encode("utf-8")
+                st.download_button("📥 Download CSV", data=csv, file_name=f"{uploaded_file.name}_analysis.csv")
 
-                    custom_l2 = st.text_input("🔌 Level 2 chargers (size,count) e.g., 7.2:4, 11:2", key=f"l2_input_{uploaded_file.name}")
-                    custom_l3 = st.text_input("⚡ Level 3 chargers (size,count) e.g., 50:1, 150:2", key=f"l3_input_{uploaded_file.name}")
+                # === OPTIMAL MIX BLOCK ===
+                opt_sizes_input = st.text_input(
+                    "Suggest optimal mix from these Level 3 sizes (kW)",
+                    value="150, 250",
+                    key=f"opt_l3_{uploaded_file.name}"
+                )
 
-                    def validate_chargers(input_str, label):
-                        try:
-                            chargers = [s.strip() for s in input_str.split(",") if ":" in s]
-                            for c in chargers:
-                                size, count = map(float, c.split(":"))
-                                total_kw = size * count
-                                result[f"{label}_{int(size)}kW_Count"] = int(count)
-                                result[f"{label}_{int(size)}kW_Used_kW"] = total_kw
-                                result[f"{label}_{int(size)}kW_Valid"] = result["Excess_Power_kW"] >= total_kw
-                                if not result[f"{label}_{int(size)}kW_Valid"].all():
-                                    st.error(f"❌ {label} {int(size)}kW charger x{int(count)} exceeds available power at some hours.")
-                        except Exception:
-                            st.warning(f"⚠️ Invalid format in {label} input. Use format like '50:2, 150:1'")
+                try:
+                    opt_sizes = [int(s.strip()) for s in opt_sizes_input.split(",") if s.strip().isdigit()]
+                    if opt_sizes:
+                        compute_optimal_mix(result, opt_sizes, "L3")
+                except Exception:
+                    st.warning("⚠️ Could not process optimal mix sizes. Use numbers like 150,250")
 
-                    if custom_l2:
-                        validate_chargers(custom_l2, "L2_Custom")
-                    if custom_l3:
-                        validate_chargers(custom_l3, "L3_Custom")
-
-                st.markdown("#### 🚀 Optimal Level 3 Charger Mix")
-opt_sizes_input = st.text_input(
-    "Suggest optimal mix from these Level 3 sizes (kW)",
-    value="150, 250",
-    key=f"opt_l3_{uploaded_file.name}"
-)
-
-try:
-    opt_sizes = [int(s.strip()) for s in opt_sizes_input.split(",") if s.strip().isdigit()]
-    if opt_sizes:
-        compute_optimal_mix(result, opt_sizes, "L3")
-except Exception:
-    st.warning("⚠️ Could not process optimal mix sizes. Use numbers like 150,250")
-
-try:
-    opt_sizes = [int(s.strip()) for s in opt_sizes_input.split(",") if s.strip().isdigit()]
-    if opt_sizes:
-        compute_optimal_mix(result, opt_sizes, "L3")
-except Exception:
-    st.warning("⚠️ Could not process optimal mix sizes. Use numbers like 150,250")
-
-try:
-    st.warning("⚠️ Could not process optimal mix sizes. Use numbers like 150,250")
-
-st.dataframe(result)
+                st.dataframe(result)
 
                 fig, ax = plt.subplots()
                 ax.plot(result["Hour"], result["Max_Power_kW"], label="Usage", color="black", linewidth=2)
@@ -231,11 +190,9 @@ st.dataframe(result)
                 ax.legend()
                 st.pyplot(fig)
 
-                csv = result.to_csv(index=False).encode("utf-8")
-                st.download_button("📥 Download CSV", data=csv, file_name=f"{uploaded_file.name}_analysis.csv")
-
             except Exception as e:
                 st.error(f"❌ Failed to process {uploaded_file.name}: {str(e)}")
+
 
 # === TAB 2: HOW TO USE ===
 with tab2:
