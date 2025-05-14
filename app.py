@@ -108,6 +108,26 @@ def process_wide_format(df):
         return None, f"Error in wide format: {e}"
 
 # === TAB 1: ANALYZER ===
+def compute_optimal_mix(result, charger_sizes, label_prefix):
+    charger_sizes = sorted([int(s) for s in charger_sizes], reverse=True)
+    for size in charger_sizes:
+        result[f"Opt_{label_prefix}_{size}kW"] = 0
+    result[f"Opt_{label_prefix}_Used_kW"] = 0
+    result[f"Opt_{label_prefix}_Remaining_kW"] = result["Excess_Power_kW"]
+
+    for i, row in result.iterrows():
+        remaining = row["Excess_Power_kW"]
+        used = 0
+        combo = {}
+        for size in charger_sizes:
+            count = math.floor(remaining / size)
+            used += count * size
+            remaining -= count * size
+            combo[size] = count
+        for size in charger_sizes:
+            result.at[i, f"Opt_{label_prefix}_{size}kW"] = combo[size]
+        result.at[i, f"Opt_{label_prefix}_Used_kW"] = used
+        result.at[i, f"Opt_{label_prefix}_Remaining_kW"] = remaining
 with tab1:
     uploaded_files = st.file_uploader("📁 Upload load profile files", type=["csv", "xlsx"], accept_multiple_files=True)
 
@@ -176,7 +196,16 @@ with tab1:
                     if custom_l3:
                         validate_chargers(custom_l3, "L3_Custom")
 
-                st.dataframe(result)
+                st.markdown("#### 🚀 Optimal Level 3 Charger Mix")
+opt_sizes_input = st.text_input("Suggest optimal mix from these Level 3 sizes (kW)", value="150, 250", key=f"opt_l3_{uploaded_file.name}")
+try:
+    opt_sizes = [int(s.strip()) for s in opt_sizes_input.split(",") if s.strip().isdigit()]
+    if opt_sizes:
+        compute_optimal_mix(result, opt_sizes, "L3")
+except Exception:
+    st.warning("⚠️ Could not process optimal mix sizes. Use numbers like 150,250")
+
+st.dataframe(result)
 
                 fig, ax = plt.subplots()
                 ax.plot(result["Hour"], result["Max_Power_kW"], label="Usage", color="black", linewidth=2)
