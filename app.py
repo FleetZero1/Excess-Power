@@ -79,31 +79,33 @@ with tab1:
 
     def process_wide_format(df):
         try:
-            df.columns = df.iloc[1]
-            df = df[2:].copy()
+            # Auto-detect header row
+            if "Date" not in str(df.iloc[0]).title():
+                df.columns = df.iloc[0]
+                df = df[1:]
+            df = df.reset_index(drop=True)
             df = df.rename(columns={df.columns[0]: "date"})
 
             time_cols = [col for col in df.columns if isinstance(col, str) and ":" in col]
             daily_total_col = next((col for col in df.columns if 'total' in str(col).lower() or 'kwh' in str(col).lower()), None)
 
-            # 🟢 Wide format: 15-min or hourly
-            if len(time_cols) > 4:
+            if len(time_cols) >= 4:
                 df_melted = df.melt(id_vars=["date"], value_vars=time_cols, var_name="time", value_name="kWh")
                 df_melted["timestamp"] = pd.to_datetime(df_melted["date"] + " " + df_melted["time"], errors='coerce')
                 df_melted["kWh"] = pd.to_numeric(df_melted["kWh"], errors="coerce")
                 df_melted = df_melted.dropna(subset=["timestamp", "kWh"])
-                df_melted["kW"] = df_melted["kWh"] / 0.25  # assumes 15-min intervals
+                # Guess interval: 15-min if 96 cols, else 1-hour
+                interval_minutes = 15 if len(time_cols) >= 96 else 60
+                df_melted["kW"] = df_melted["kWh"] / (interval_minutes / 60)
                 df_melted["hour"] = df_melted["timestamp"].dt.hour
                 hourly = df_melted.groupby("hour")["kW"].max().reset_index()
                 hourly.columns = ["Hour", "Max_Power_kW"]
                 return hourly, None
 
-            # 🟡 Daily total format: Date + Total kWh
             elif daily_total_col:
                 df["date"] = pd.to_datetime(df["date"], errors="coerce")
                 df["kWh"] = pd.to_numeric(df[daily_total_col], errors="coerce")
                 df = df.dropna(subset=["date", "kWh"])
-
                 st.warning("⚠️ Daily total file detected — estimating average hourly power assuming 24-hour usage.")
                 df["kW_avg"] = df["kWh"] / 24
                 hourly = pd.DataFrame({
@@ -114,9 +116,9 @@ with tab1:
 
             else:
                 return None, "Unsupported format: missing time columns or total energy column."
-
         except Exception as e:
             return None, f"Error in wide/daily format: {e}"
+
 
 
     if uploaded_files:
