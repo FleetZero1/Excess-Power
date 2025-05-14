@@ -157,10 +157,11 @@ with tab1:
                 result["Capacity_kW"] = capacity_kw
                 result["Excess_Power_kW"] = result["Capacity_kW"] - result["Max_Power_kW"]
 
-                # ⚡ Multiple Level 3 charger sizes
                 st.markdown("#### 🔍 Level 3 Charger Feasibility (Multiple Sizes)")
                 charger_sizes_input = st.text_input(
-                    "Enter Level 3 charger sizes (kW), comma-separated", value="50, 100, 150", key=f"multi_l3_{uploaded_file.name}"
+                    "Enter Level 3 charger sizes (kW), comma-separated",
+                    value="50, 100, 150",
+                    key=f"multi_l3_{uploaded_file.name}"
                 )
 
                 try:
@@ -170,35 +171,19 @@ with tab1:
                 except Exception:
                     st.warning("⚠️ Invalid input for charger sizes. Use numbers separated by commas (e.g., 50, 100, 150).")
 
-                charger_strategy = st.radio(
-                    f"Select charger input method for {uploaded_file.name}",
-                    ["Auto-calculate both", "Input Level 2 Count", "Input Level 3 Count"],
-                    horizontal=True
+                st.markdown("#### 🔍 Level 2 Charger Feasibility (Multiple Sizes)")
+                l2_sizes_input = st.text_input(
+                    "Enter Level 2 charger sizes (kW), comma-separated",
+                    value="7.2, 11",
+                    key=f"multi_l2_{uploaded_file.name}"
                 )
 
-                if charger_strategy == "Input Level 3 Count":
-                    l3_count = st.number_input("Number of Level 3 Chargers", min_value=0, step=1, key=f"l3_{uploaded_file.name}")
-                    result["Used_L3_kW"] = l3_count * level3_kw
-                    result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L3_kW"]
-                    if (result["Remaining_kW"] < 0).any():
-                        st.error("❌ Level 3 charger capacity exceeds available power!")
-                    result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
-                    result["Level 2 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level2_kw))
-                    result["Level 3 Chargers"] = l3_count
-
-                elif charger_strategy == "Input Level 2 Count":
-                    l2_count = st.number_input("Number of Level 2 Chargers", min_value=0, step=1, key=f"l2_{uploaded_file.name}")
-                    result["Used_L2_kW"] = l2_count * level2_kw
-                    result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L2_kW"]
-                    if (result["Remaining_kW"] < 0).any():
-                        st.error("❌ Level 2 charger capacity exceeds available power!")
-                    result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
-                    result["Level 3 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level3_kw))
-                    result["Level 2 Chargers"] = l2_count
-
-                else:
-                    result["Level 2 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level2_kw))
-                    result["Level 3 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level3_kw))
+                try:
+                    l2_sizes = [float(s.strip()) for s in l2_sizes_input.split(",")]
+                    for size in l2_sizes:
+                        result[f"L2_{int(size)}kW"] = result["Excess_Power_kW"].apply(lambda x: max(0, math.floor(x / size)))
+                except Exception:
+                    st.warning("⚠️ Invalid input for Level 2 sizes. Use numbers separated by commas (e.g., 7.2, 11).")
 
                 st.dataframe(result)
 
