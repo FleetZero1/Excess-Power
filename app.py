@@ -156,7 +156,7 @@ with tab1:
 
                 result["Capacity_kW"] = capacity_kw
                 result["Excess_Power_kW"] = result["Capacity_kW"] - result["Max_Power_kW"]
-                # Let user pick a strategy
+                    # Let user pick a strategy
 charger_strategy = st.radio(
     f"Select charger input method for {uploaded_file.name}",
     ["Auto-calculate both", "Input Level 2 Count", "Input Level 3 Count"],
