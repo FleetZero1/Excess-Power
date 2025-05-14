@@ -79,34 +79,36 @@ with tab1:
 
     def process_wide_format(df):
         try:
-            # Auto-detect header row
-            if "Date" not in str(df.iloc[0]).title():
+            # Detect if the first row is the header row (contains "Date" or time columns)
+            if not any("date" in str(val).lower() for val in df.iloc[0]):
                 df.columns = df.iloc[0]
-                df = df[1:]
-            df = df.reset_index(drop=True)
+                df = df[1:].copy()
+
             df = df.rename(columns={df.columns[0]: "date"})
 
+            # Identify time columns like 0:15, 1:00, etc.
             time_cols = [col for col in df.columns if isinstance(col, str) and ":" in col]
             daily_total_col = next((col for col in df.columns if 'total' in str(col).lower() or 'kwh' in str(col).lower()), None)
 
-            if len(time_cols) >= 4:
+            # ✅ Wide format with time columns
+            if len(time_cols) > 0:
                 df_melted = df.melt(id_vars=["date"], value_vars=time_cols, var_name="time", value_name="kWh")
                 df_melted["timestamp"] = pd.to_datetime(df_melted["date"] + " " + df_melted["time"], errors='coerce')
                 df_melted["kWh"] = pd.to_numeric(df_melted["kWh"], errors="coerce")
                 df_melted = df_melted.dropna(subset=["timestamp", "kWh"])
-                # Guess interval: 15-min if 96 cols, else 1-hour
-                interval_minutes = 15 if len(time_cols) >= 96 else 60
-                df_melted["kW"] = df_melted["kWh"] / (interval_minutes / 60)
+                interval_guess = 0.25 if len(time_cols) >= 96 else 1.0  # 15-min or hourly
+                df_melted["kW"] = df_melted["kWh"] / interval_guess
                 df_melted["hour"] = df_melted["timestamp"].dt.hour
                 hourly = df_melted.groupby("hour")["kW"].max().reset_index()
                 hourly.columns = ["Hour", "Max_Power_kW"]
                 return hourly, None
 
+            # ✅ Daily kWh total format
             elif daily_total_col:
                 df["date"] = pd.to_datetime(df["date"], errors="coerce")
                 df["kWh"] = pd.to_numeric(df[daily_total_col], errors="coerce")
                 df = df.dropna(subset=["date", "kWh"])
-                st.warning("⚠️ Daily total file detected — estimating average hourly power assuming 24-hour usage.")
+                st.warning("⚠️ Daily kWh file detected — assuming uniform 24-hour usage.")
                 df["kW_avg"] = df["kWh"] / 24
                 hourly = pd.DataFrame({
                     "Hour": list(range(24)),
@@ -115,9 +117,10 @@ with tab1:
                 return hourly, None
 
             else:
-                return None, "Unsupported format: missing time columns or total energy column."
+                return None, "Unsupported format: no valid time columns or total kWh column found."
+
         except Exception as e:
-            return None, f"Error in wide/daily format: {e}"
+            return None, f"Error in wide format: {e}"
 
 
 
