@@ -197,8 +197,12 @@ with tab1:
                         validate_chargers(custom_l3, "L3_Custom")
 
                 st.markdown("#### 🚀 Optimal Level 3 Charger Mix")
-opt_sizes_input = st.text_input("Suggest optimal mix from these Level 3 sizes (kW)", value="150, 250", key=f"opt_l3_{uploaded_file.name}")
 try:
+    opt_sizes_input = st.text_input(
+        "Suggest optimal mix from these Level 3 sizes (kW)",
+        value="150, 250",
+        key=f"opt_l3_{uploaded_file.name}"
+    )
     opt_sizes = [int(s.strip()) for s in opt_sizes_input.split(",") if s.strip().isdigit()]
     if opt_sizes:
         compute_optimal_mix(result, opt_sizes, "L3")
