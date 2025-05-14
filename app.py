@@ -125,6 +125,8 @@ with tab1:
                 key=f"capacity_{uploaded_file.name}"
             )
 
+            tick_spacing = st.number_input("📏 X-axis Tick Interval (hours)", min_value=1, max_value=24, value=3, step=1, key=f"tick_{uploaded_file.name}")
+
             try:
                 if uploaded_file.name.endswith(".csv"):
                     df = pd.read_csv(uploaded_file)
@@ -157,7 +159,6 @@ with tab1:
                 result["Capacity_kW"] = capacity_kw
                 result["Excess_Power_kW"] = result["Capacity_kW"] - result["Max_Power_kW"]
 
-                # === OPTIONAL CUSTOM TEST ===
                 custom_test = st.checkbox(f"🔧 Enable Custom Charger Test for {uploaded_file.name}", key=f"custom_{uploaded_file.name}")
 
                 if custom_test:
@@ -175,11 +176,14 @@ with tab1:
                     else:
                         st.success("✅ Custom charger combination fits within available capacity.")
 
+                    st.dataframe(result)
+
                     fig2, ax2 = plt.subplots()
                     ax2.plot(result["Hour"], result["Total_Load_kW"], label="Total Load (Usage + Custom Chargers)", color="red")
                     ax2.plot(result["Hour"], result["Capacity_kW"], label="Capacity", color="green", linestyle="--")
                     ax2.set_xlabel("Hour")
                     ax2.set_ylabel("Power (kW)")
+                    ax2.set_xticks(range(0, 24, tick_spacing))
                     ax2.set_title(f"{uploaded_file.name} – Custom Load vs Capacity")
                     ax2.legend()
                     st.pyplot(fig2)
@@ -211,24 +215,23 @@ with tab1:
                         result["Level 2 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level2_kw))
                         result["Level 3 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level3_kw))
 
+                    st.dataframe(result)
+
                     fig, ax = plt.subplots()
                     ax.plot(result["Hour"], result["Max_Power_kW"], label="Usage", color="black", linewidth=2)
                     ax.plot(result["Hour"], result["Capacity_kW"], label="Capacity", color="green", linestyle="--", linewidth=2)
                     ax.set_xlabel("Hour of Day")
                     ax.set_ylabel("Power (kW)")
+                    ax.set_xticks(range(0, 24, tick_spacing))
                     ax.set_title(f"{uploaded_file.name} - Usage vs Capacity")
                     ax.legend()
                     st.pyplot(fig)
 
-                st.dataframe(result)
                 csv = result.to_csv(index=False).encode("utf-8")
                 st.download_button("📥 Download CSV", data=csv, file_name=f"{uploaded_file.name}_analysis.csv")
 
             except Exception as e:
                 st.error(f"❌ Failed to process {uploaded_file.name}: {str(e)}")
-
-
-
 
 # === TAB 2: HOW TO USE ===
 with tab2:
