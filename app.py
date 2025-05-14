@@ -86,19 +86,19 @@ with tab1:
             time_cols = [col for col in df.columns if isinstance(col, str) and ":" in col]
             daily_total_col = next((col for col in df.columns if 'total' in str(col).lower() or 'kwh' in str(col).lower()), None)
 
-            # 🟢 Case: Wide format (15-min or hourly intervals)
+            # 🟢 Wide format: 15-min or hourly
             if len(time_cols) > 4:
                 df_melted = df.melt(id_vars=["date"], value_vars=time_cols, var_name="time", value_name="kWh")
                 df_melted["timestamp"] = pd.to_datetime(df_melted["date"] + " " + df_melted["time"], errors='coerce')
                 df_melted["kWh"] = pd.to_numeric(df_melted["kWh"], errors="coerce")
                 df_melted = df_melted.dropna(subset=["timestamp", "kWh"])
-                df_melted["kW"] = df_melted["kWh"] / 0.25  # assume 15-minute data
+                df_melted["kW"] = df_melted["kWh"] / 0.25  # assumes 15-min intervals
                 df_melted["hour"] = df_melted["timestamp"].dt.hour
                 hourly = df_melted.groupby("hour")["kW"].max().reset_index()
                 hourly.columns = ["Hour", "Max_Power_kW"]
                 return hourly, None
 
-            # 🟡 Case: Daily total file (e.g., Date + kWh)
+            # 🟡 Daily total format: Date + Total kWh
             elif daily_total_col:
                 df["date"] = pd.to_datetime(df["date"], errors="coerce")
                 df["kWh"] = pd.to_numeric(df[daily_total_col], errors="coerce")
@@ -117,13 +117,6 @@ with tab1:
 
         except Exception as e:
             return None, f"Error in wide/daily format: {e}"
-
-
-        else:
-            return None, "Unsupported format: missing time columns or total energy column."
-
-    except Exception as e:
-        return None, f"Error in wide/daily format: {e}"
 
 
     if uploaded_files:
