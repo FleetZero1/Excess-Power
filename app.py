@@ -182,7 +182,7 @@ elif charger_strategy == "Input Level 2 Count":
 
 else:
     result["Level 2 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level2_kw))
-    result["Level 3 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level3_kw))
+    result["Level 3 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level3_kw)) = result["Excess_Power_kW"].apply(lambda x: max(0, math.floor(x / level3_kw)))
 
                 st.dataframe(result)
 
@@ -240,22 +240,17 @@ with tab2:
 
     Contact **Fleet Zero** at: [info@fleetzero.ai](mailto:info@fleetzero.ai)
     """)
+
 # === TAB 3: ABOUT ===
 with tab3:
     st.header("🌱 About Fleet Zero")
     st.markdown("""
-Fleet Zero is your trusted advisor and solution provider for your fleet transition journey.
+    Fleet Zero is committed to powering the future of electric fleets through smart, scalable, and data-driven infrastructure tools.
 
-We help **light to heavy duty fleets** navigate their route to **zero emissions** by offering:
-- 🎯 Strategic fleet electrification planning
-- 🔌 Charging infrastructure design and analysis
-- 🧠 Data-driven operational insights
-- 🛠 Turnkey transition support
+    - 🌍 Sustainable mobility
+    - 🔌 EV readiness
+    - 📊 Infrastructure planning
 
-Our **sustainable and experienced team** removes the complexity so you can focus on staying on the road.
-
----
-
-📍 **Website**: [fleetzero.ai](https://fleetzero.ai)  
-📧 **Email**: [info@fleetzero.ai](mailto:info@fleetzero.ai)
-""")
+    **Website**: [fleetzero.ai](https://fleetzero.ai)  
+    **Email**: [Info@fleetzero.ai](mailto:info@fleetzero.ai)
+    """)
