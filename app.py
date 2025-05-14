@@ -215,16 +215,22 @@ with tab2:
 
     Contact **Fleet Zero** at: [info@fleetzero.ai](mailto:info@fleetzero.ai)
     """)
-
 # === TAB 3: ABOUT ===
 with tab3:
     st.header("🌱 About Fleet Zero")
     st.markdown("""
-   
-We are sustainable and experienced advisors
-FleetZero is your trusted advisor and solution provider for your fleet transition journey. We help light to heavy duty fleets navigate their route to zero emissions. 
-Our turnkey solutions remove the emission transition headache to keep you on the road.
+Fleet Zero is your trusted advisor and solution provider for your fleet transition journey.
 
-    **Website**: [fleetzero.ai](https://fleetzero.ai)  
-    **Email**: [Info@fleetzero.ai](mailto:info@fleetzero.ai)
-    """)
+We help **light to heavy duty fleets** navigate their route to **zero emissions** by offering:
+- 🎯 Strategic fleet electrification planning
+- 🔌 Charging infrastructure design and analysis
+- 🧠 Data-driven operational insights
+- 🛠 Turnkey transition support
+
+Our **sustainable and experienced team** removes the complexity so you can focus on staying on the road.
+
+---
+
+📍 **Website**: [fleetzero.ai](https://fleetzero.ai)  
+📧 **Email**: [info@fleetzero.ai](mailto:info@fleetzero.ai)
+""")
