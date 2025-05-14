@@ -156,8 +156,33 @@ with tab1:
 
                 result["Capacity_kW"] = capacity_kw
                 result["Excess_Power_kW"] = result["Capacity_kW"] - result["Max_Power_kW"]
-                result["Max_Level2_Chargers"] = result["Excess_Power_kW"].apply(lambda x: max(0, math.floor(x / level2_kw)))
-                result["Max_Level3_Chargers"] = result["Excess_Power_kW"].apply(lambda x: max(0, math.floor(x / level3_kw)))
+                # Let user pick a strategy
+charger_strategy = st.radio(
+    f"Select charger input method for {uploaded_file.name}",
+    ["Auto-calculate both", "Input Level 2 Count", "Input Level 3 Count"],
+    horizontal=True
+)
+
+# Create interactive charger count options
+if charger_strategy == "Input Level 3 Count":
+    l3_count = st.number_input("Number of Level 3 Chargers", min_value=0, step=1, key=f"l3_{uploaded_file.name}")
+    result["Used_L3_kW"] = l3_count * level3_kw
+    result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L3_kW"]
+    result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
+    result["Level 2 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level2_kw))
+    result["Level 3 Chargers"] = l3_count
+
+elif charger_strategy == "Input Level 2 Count":
+    l2_count = st.number_input("Number of Level 2 Chargers", min_value=0, step=1, key=f"l2_{uploaded_file.name}")
+    result["Used_L2_kW"] = l2_count * level2_kw
+    result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L2_kW"]
+    result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
+    result["Level 3 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level3_kw))
+    result["Level 2 Chargers"] = l2_count
+
+else:
+    result["Level 2 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level2_kw))
+    result["Level 3 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level3_kw))
 
                 st.dataframe(result)
 
