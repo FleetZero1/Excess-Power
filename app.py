@@ -146,25 +146,10 @@ with tab1:
             )
 
             try:
-                if uploaded_file.name.endswith(".csv"):
-                    df = pd.read_csv(uploaded_file)
-                    is_wide = df.shape[1] > 10 and df.iloc[1].astype(str).str.contains("Date", case=False, na=False).any()
-                else:
-                    raw = pd.read_excel(uploaded_file, header=None)
-                    header_row_index = None
-                    for i in range(min(5, len(raw))):
-                        row = raw.iloc[i].astype(str).str.lower()
-                        if any("date" in cell for cell in row) and any(":" in cell for cell in row):
-                            header_row_index = i
-                            break
-                    if header_row_index is not None:
-                        df = pd.read_excel(uploaded_file, header=header_row_index)
-                        is_wide = True
-                    else:
-                        df = pd.read_excel(uploaded_file)
-                        is_wide = df.shape[1] > 10 and any(":" in str(col) for col in df.columns)
-
+                df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file, header=None)
+                is_wide = df.shape[1] > 10 and df.iloc[1].astype(str).str.contains("Date", case=False, na=False).any()
                 result, error = process_wide_format(df) if is_wide else process_tall_format(df)
+
                 if error:
                     st.error(f"❌ {error}")
                     continue
@@ -205,4 +190,3 @@ with tab1:
 
             except Exception as e:
                 st.error(f"❌ Failed to process {uploaded_file.name}: {str(e)}")
-
