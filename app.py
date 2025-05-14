@@ -41,211 +41,243 @@ tab1, tab2, tab3, tab4 = st.tabs(["📊 Analyzer", "💵 Cost & Report", "📁 H
 
 # === TAB 1: ANALYZER ===
 with tab1:
-    # === PROCESSING FUNCTIONS ===
-def process_tall_format(df):
-    try:
-        if 'Unnamed: 1' in df.columns and df.iloc[0].astype(str).str.contains("DATE", case=False, na=False).any():
-            df.columns = df.iloc[0]
-            df = df[1:]
-        df.columns = [col.lower().strip() if isinstance(col, str) else col for col in df.columns]
+" + 
+"    uploaded_files = st.file_uploader("📁 Upload load profile files", type=["csv", "xlsx"], accept_multiple_files=True)
 
-        if 'timestamp' in df.columns:
-            df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
-        elif 'date' in df.columns and 'time' in df.columns:
-            df['timestamp'] = pd.to_datetime(df['date'] + ' ' + df['time'], errors='coerce')
-        else:
-            return None, "Missing 'timestamp' or 'date' + 'time' columns."
+" +
+"    level2_kw = st.number_input("🔋 Global Level 2 Charger Size (kW)", min_value=1.0, value=7.2)
+" +
+"    level3_kw = st.number_input("⚡ Global Level 3 Charger Size (kW)", min_value=10.0, value=50.0)
 
-        power_col = next((col for col in df.columns if isinstance(col, str) and 'kw' in col.lower()), None)
-        if power_col is None:
-            return None, "No 'kW' column found."
+" +
+"    if uploaded_files:
+" +
+"        for uploaded_file in uploaded_files:
+" +
+"            st.markdown("---")
+" +
+"            st.subheader(f"📄 {uploaded_file.name}")
 
-        df["kW"] = pd.to_numeric(df[power_col], errors="coerce")
-        df = df.dropna(subset=["timestamp", "kW"])
-        df["hour"] = df["timestamp"].dt.hour
-        hourly = df.groupby("hour")["kW"].max().reset_index()
-        hourly.columns = ["Hour", "Max_Power_kW"]
-        return hourly, None
-    except Exception as e:
-        return None, f"Error in tall format: {e}"
+" +
+"            capacity_kw = st.number_input(
+" +
+"                f"🏢 Utility capacity for {uploaded_file.name} (kW)",
+" +
+"                min_value=0.0, value=100.0, step=1.0,
+" +
+"                key=f"capacity_{uploaded_file.name}"
+" +
+"            )
 
-def process_wide_format(df):
-    try:
-        if df.iloc[0].astype(str).str.contains("Date", case=False, na=False).any():
-            df.columns = df.iloc[0]
-            df = df[1:].copy()
+" +
+"            tick_spacing = st.number_input("📏 X-axis Tick Interval (hours)", min_value=1, max_value=24, value=3, step=1, key=f"tick_{uploaded_file.name}")
 
-        df = df.rename(columns={df.columns[0]: "date"})
-        
-        time_cols = [col for col in df.columns if isinstance(col, str) and ":" in col]
-        daily_total_col = next((col for col in df.columns if 'total' in str(col).lower() or 'kwh' in str(col).lower()), None)
+" +
+"            st.markdown("### 📐 Y-axis Range (optional)")
+" +
+"            y_min = st.number_input("Minimum Y-axis (kW)", min_value=0.0, value=0.0, step=1.0, key=f"ymin_{uploaded_file.name}")
+" +
+"            y_max = st.number_input("Maximum Y-axis (kW)", min_value=0.0, value=0.0, step=1.0, key=f"ymax_{uploaded_file.name}")
+" +
+"            use_y_limits = st.checkbox("Use custom Y-axis limits", key=f"useylim_{uploaded_file.name}")
 
-        if len(time_cols) > 0:
-            df_melted = df.melt(id_vars=["date"], value_vars=time_cols, var_name="time", value_name="kWh")
-            df_melted["timestamp"] = pd.to_datetime(df_melted["date"] + " " + df_melted["time"], errors='coerce')
-            df_melted = df_melted[df_melted['timestamp'].notna()]
-            df_melted["kWh"] = pd.to_numeric(df_melted["kWh"], errors="coerce")
-            df_melted = df_melted.dropna(subset=["kWh"])
-            interval_guess = 0.25 if len(time_cols) >= 96 else 1.0
-            df_melted["kW"] = df_melted["kWh"] / interval_guess
-            df_melted["hour"] = df_melted["timestamp"].dt.hour
-            hourly = df_melted.groupby("hour")["kW"].max().reset_index()
-            hourly.columns = ["Hour", "Max_Power_kW"]
-            return hourly, None
+" +
+"            try:
+" +
+"                if uploaded_file.name.endswith(".csv"):
+" +
+"                    df = pd.read_csv(uploaded_file)
+" +
+"                else:
+" +
+"                    raw = pd.read_excel(uploaded_file, header=None)
+" +
+"                    header_row_index = None
 
-        elif daily_total_col:
-            df["date"] = pd.to_datetime(df["date"], errors="coerce")
-            df["kWh"] = pd.to_numeric(df[daily_total_col], errors="coerce")
-            df = df.dropna(subset=["date", "kWh"])
-            st.warning("⚠️ Daily kWh file detected — assuming uniform 24-hour usage.")
-            df["kW_avg"] = df["kWh"] / 24
-            hourly = pd.DataFrame({
-                "Hour": list(range(24)),
-                "Max_Power_kW": [df["kW_avg"].max()] * 24
-            })
-            return hourly, None
+" +
+"                    for i in range(min(5, len(raw))):
+" +
+"                        row = raw.iloc[i].astype(str).str.lower()
+" +
+"                        if any('date' in cell for cell in row) and any(':' in cell for cell in row):
+" +
+"                            header_row_index = i
+" +
+"                            break
 
-        else:
-            return None, "Unsupported format: no valid time columns or total kWh column found."
+" +
+"                    if header_row_index is not None:
+" +
+"                        df = pd.read_excel(uploaded_file, header=header_row_index)
+" +
+"                    else:
+" +
+"                        df = raw.copy()
 
-    except Exception as e:
-        return None, f"Error in wide format: {e}"
+" +
+"                raw_cols = df.columns.tolist()
+" +
+"                time_like_cols = [col for col in raw_cols if isinstance(col, str) and ":" in col]
+" +
+"                has_date = any("date" in str(col).lower() for col in raw_cols)
+" +
+"                is_wide = has_date and len(time_like_cols) >= 20
 
-# === TAB 1: ANALYZER ===
-with tab1:
-    uploaded_files = st.file_uploader("📁 Upload load profile files", type=["csv", "xlsx"], accept_multiple_files=True)
+" +
+"                result, error = process_wide_format(df) if is_wide else process_tall_format(df)
 
-    level2_kw = st.number_input("🔋 Global Level 2 Charger Size (kW)", min_value=1.0, value=7.2)
-    level3_kw = st.number_input("⚡ Global Level 3 Charger Size (kW)", min_value=10.0, value=50.0)
+" +
+"                if error:
+" +
+"                    st.error(f"❌ {error}")
+" +
+"                    continue
 
-    if uploaded_files:
-        for uploaded_file in uploaded_files:
-            st.markdown("---")
-            st.subheader(f"📄 {uploaded_file.name}")
+" +
+"                result["Capacity_kW"] = capacity_kw
+" +
+"                result["Excess_Power_kW"] = result["Capacity_kW"] - result["Max_Power_kW"]
 
-            capacity_kw = st.number_input(
-                f"🏢 Utility capacity for {uploaded_file.name} (kW)",
-                min_value=0.0, value=100.0, step=1.0,
-                key=f"capacity_{uploaded_file.name}"
-            )
+" +
+"                custom_test = st.checkbox(f"🔧 Enable Custom Charger Test for {uploaded_file.name}", key=f"custom_{uploaded_file.name}")
 
-            tick_spacing = st.number_input("📏 X-axis Tick Interval (hours)", min_value=1, max_value=24, value=3, step=1, key=f"tick_{uploaded_file.name}")
+" +
+"                if custom_test:
+" +
+"                    custom_l2_kw = st.number_input("Custom Level 2 Charger Size (kW)", min_value=1.0, value=7.2, key=f"cust_l2_{uploaded_file.name}")
+" +
+"                    custom_l2_count = st.number_input("Number of Level 2 Chargers", min_value=0, step=1, key=f"cust_l2_count_{uploaded_file.name}")
 
-            st.markdown("### 📐 Y-axis Range (optional)")
-            y_min = st.number_input("Minimum Y-axis (kW)", min_value=0.0, value=0.0, step=1.0, key=f"ymin_{uploaded_file.name}")
-            y_max = st.number_input("Maximum Y-axis (kW)", min_value=0.0, value=0.0, step=1.0, key=f"ymax_{uploaded_file.name}")
-            use_y_limits = st.checkbox("Use custom Y-axis limits", key=f"useylim_{uploaded_file.name}")
+" +
+"                    custom_l3_kw = st.number_input("Custom Level 3 Charger Size (kW)", min_value=10.0, value=50.0, key=f"cust_l3_{uploaded_file.name}")
+" +
+"                    custom_l3_count = st.number_input("Number of Level 3 Chargers", min_value=0, step=1, key=f"cust_l3_count_{uploaded_file.name}")
 
-            try:
-                if uploaded_file.name.endswith(".csv"):
-                    df = pd.read_csv(uploaded_file)
-                else:
-                    raw = pd.read_excel(uploaded_file, header=None)
-                    header_row_index = None
+" +
+"                    result["Custom_Load_kW"] = (custom_l2_kw * custom_l2_count) + (custom_l3_kw * custom_l3_count)
+" +
+"                    result["Total_Load_kW"] = result["Max_Power_kW"] + result["Custom_Load_kW"]
 
-                    for i in range(min(5, len(raw))):
-                        row = raw.iloc[i].astype(str).str.lower()
-                        if any('date' in cell for cell in row) and any(':' in cell for cell in row):
-                            header_row_index = i
-                            break
+" +
+"                    if (result["Total_Load_kW"] > result["Capacity_kW"]).any():
+" +
+"                        st.error("❌ Custom charger combination exceeds capacity at one or more hours.")
+" +
+"                    else:
+" +
+"                        st.success("✅ Custom charger combination fits within available capacity.")
 
-                    if header_row_index is not None:
-                        df = pd.read_excel(uploaded_file, header=header_row_index)
-                    else:
-                        df = raw.copy()
+" +
+"                    st.dataframe(result)
 
-                raw_cols = df.columns.tolist()
-                time_like_cols = [col for col in raw_cols if isinstance(col, str) and ":" in col]
-                has_date = any("date" in str(col).lower() for col in raw_cols)
-                is_wide = has_date and len(time_like_cols) >= 20
+" +
+"                    fig2, ax2 = plt.subplots()
+" +
+"                    ax2.plot(result["Hour"], result["Total_Load_kW"], label="Total Load (Usage + Custom Chargers)", color="red")
+" +
+"                    ax2.plot(result["Hour"], result["Capacity_kW"], label="Capacity", color="green", linestyle="--")
+" +
+"                    ax2.set_xlabel("Hour")
+" +
+"                    ax2.set_ylabel("Power (kW)")
+" +
+"                    ax2.set_xticks(range(0, 24, tick_spacing))
+" +
+"                    if use_y_limits and y_max > y_min:
+" +
+"                        ax2.set_ylim(y_min, y_max)
+" +
+"                    ax2.set_title(f"{uploaded_file.name} – Custom Load vs Capacity")
+" +
+"                    ax2.legend()
+" +
+"                    st.pyplot(fig2)
 
-                result, error = process_wide_format(df) if is_wide else process_tall_format(df)
+" +
+"                else:
+" +
+"                    charger_strategy = st.radio(
+" +
+"                        f"Select charger input method for {uploaded_file.name}",
+" +
+"                        ["Auto-calculate both", "Input Level 2 Count", "Input Level 3 Count"],
+" +
+"                        horizontal=True
+" +
+"                    )
 
-                if error:
-                    st.error(f"❌ {error}")
-                    continue
+" +
+"                    if charger_strategy == "Input Level 3 Count":
+" +
+"                        l3_count = st.number_input("Number of Level 3 Chargers", min_value=0, step=1, key=f"l3_{uploaded_file.name}")
+" +
+"                        result["Used_L3_kW"] = l3_count * level3_kw
+" +
+"                        result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L3_kW"]
+" +
+"                        result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
+" +
+"                        result["Level 2 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level2_kw))
+" +
+"                        result["Level 3 Chargers"] = l3_count
 
-                result["Capacity_kW"] = capacity_kw
-                result["Excess_Power_kW"] = result["Capacity_kW"] - result["Max_Power_kW"]
+" +
+"                    elif charger_strategy == "Input Level 2 Count":
+" +
+"                        l2_count = st.number_input("Number of Level 2 Chargers", min_value=0, step=1, key=f"l2_{uploaded_file.name}")
+" +
+"                        result["Used_L2_kW"] = l2_count * level2_kw
+" +
+"                        result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L2_kW"]
+" +
+"                        result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
+" +
+"                        result["Level 3 Chargers"] = result["Remaining_KW"].apply(lambda x: math.floor(x / level3_kw))
+" +
+"                        result["Level 2 Chargers"] = l2_count
 
-                custom_test = st.checkbox(f"🔧 Enable Custom Charger Test for {uploaded_file.name}", key=f"custom_{uploaded_file.name}")
+" +
+"                    else:
+" +
+"                        result["Level 2 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level2_kw))
+" +
+"                        result["Level 3 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level3_kw))
 
-                if custom_test:
-                    custom_l2_kw = st.number_input("Custom Level 2 Charger Size (kW)", min_value=1.0, value=7.2, key=f"cust_l2_{uploaded_file.name}")
-                    custom_l2_count = st.number_input("Number of Level 2 Chargers", min_value=0, step=1, key=f"cust_l2_count_{uploaded_file.name}")
+" +
+"                    st.dataframe(result)
 
-                    custom_l3_kw = st.number_input("Custom Level 3 Charger Size (kW)", min_value=10.0, value=50.0, key=f"cust_l3_{uploaded_file.name}")
-                    custom_l3_count = st.number_input("Number of Level 3 Chargers", min_value=0, step=1, key=f"cust_l3_count_{uploaded_file.name}")
+" +
+"                    fig, ax = plt.subplots()
+" +
+"                    ax.plot(result["Hour"], result["Max_Power_kW"], label="Usage", color="black", linewidth=2)
+" +
+"                    ax.plot(result["Hour"], result["Capacity_kW"], label="Capacity", color="green", linestyle="--", linewidth=2)
+" +
+"                    ax.set_xlabel("Hour of Day")
+" +
+"                    ax.set_ylabel("Power (kW)")
+" +
+"                    ax.set_xticks(range(0, 24, tick_spacing))
+" +
+"                    if use_y_limits and y_max > y_min:
+" +
+"                        ax.set_ylim(y_min, y_max)
+" +
+"                    ax.set_title(f"{uploaded_file.name} - Usage vs Capacity")
+" +
+"                    ax.legend()
+" +
+"                    st.pyplot(fig)
 
-                    result["Custom_Load_kW"] = (custom_l2_kw * custom_l2_count) + (custom_l3_kw * custom_l3_count)
-                    result["Total_Load_kW"] = result["Max_Power_kW"] + result["Custom_Load_kW"]
+" +
+"                csv = result.to_csv(index=False).encode("utf-8")
+" +
+"                st.download_button("📥 Download CSV", data=csv, file_name=f"{uploaded_file.name}_analysis.csv")
 
-                    if (result["Total_Load_kW"] > result["Capacity_kW"]).any():
-                        st.error("❌ Custom charger combination exceeds capacity at one or more hours.")
-                    else:
-                        st.success("✅ Custom charger combination fits within available capacity.")
-
-                    st.dataframe(result)
-
-                    fig2, ax2 = plt.subplots()
-                    ax2.plot(result["Hour"], result["Total_Load_kW"], label="Total Load (Usage + Custom Chargers)", color="red")
-                    ax2.plot(result["Hour"], result["Capacity_kW"], label="Capacity", color="green", linestyle="--")
-                    ax2.set_xlabel("Hour")
-                    ax2.set_ylabel("Power (kW)")
-                    ax2.set_xticks(range(0, 24, tick_spacing))
-                    if use_y_limits and y_max > y_min:
-                        ax2.set_ylim(y_min, y_max)
-                    ax2.set_title(f"{uploaded_file.name} – Custom Load vs Capacity")
-                    ax2.legend()
-                    st.pyplot(fig2)
-
-                else:
-                    charger_strategy = st.radio(
-                        f"Select charger input method for {uploaded_file.name}",
-                        ["Auto-calculate both", "Input Level 2 Count", "Input Level 3 Count"],
-                        horizontal=True
-                    )
-
-                    if charger_strategy == "Input Level 3 Count":
-                        l3_count = st.number_input("Number of Level 3 Chargers", min_value=0, step=1, key=f"l3_{uploaded_file.name}")
-                        result["Used_L3_kW"] = l3_count * level3_kw
-                        result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L3_kW"]
-                        result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
-                        result["Level 2 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level2_kw))
-                        result["Level 3 Chargers"] = l3_count
-
-                    elif charger_strategy == "Input Level 2 Count":
-                        l2_count = st.number_input("Number of Level 2 Chargers", min_value=0, step=1, key=f"l2_{uploaded_file.name}")
-                        result["Used_L2_kW"] = l2_count * level2_kw
-                        result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L2_kW"]
-                        result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
-                        result["Level 3 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level3_kw))
-                        result["Level 2 Chargers"] = l2_count
-
-                    else:
-                        result["Level 2 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level2_kw))
-                        result["Level 3 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level3_kw))
-
-                    st.dataframe(result)
-
-                    fig, ax = plt.subplots()
-                    ax.plot(result["Hour"], result["Max_Power_kW"], label="Usage", color="black", linewidth=2)
-                    ax.plot(result["Hour"], result["Capacity_kW"], label="Capacity", color="green", linestyle="--", linewidth=2)
-                    ax.set_xlabel("Hour of Day")
-                    ax.set_ylabel("Power (kW)")
-                    ax.set_xticks(range(0, 24, tick_spacing))
-                    if use_y_limits and y_max > y_min:
-                        ax.set_ylim(y_min, y_max)
-                    ax.set_title(f"{uploaded_file.name} - Usage vs Capacity")
-                    ax.legend()
-                    st.pyplot(fig)
-
-                csv = result.to_csv(index=False).encode("utf-8")
-                st.download_button("📥 Download CSV", data=csv, file_name=f"{uploaded_file.name}_analysis.csv")
-
-            except Exception as e:
-                st.error(f"❌ Failed to process {uploaded_file.name}: {str(e)}")
-    ...
+" +
+"            except Exception as e:
+" +
+"                st.error(f"❌ Failed to process {uploaded_file.name}: {str(e)}")
 
 # === TAB 2: COST & REPORT ===
 with tab2:
@@ -286,6 +318,9 @@ with tab2:
                           title="Load vs Chargers with Cost Estimation")
             fig.add_scatter(x=df["Hour"], y=[site_capacity]*24, mode="lines", name="Capacity")
             st.plotly_chart(fig, use_container_width=True)
+
+            total_cost = df["Energy_Cost"].sum()
+            st.metric("🔢 Total Energy Cost ($)", f"{total_cost:.2f}")
 
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
