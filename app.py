@@ -126,80 +126,83 @@ with tab1:
             )
 
             try:
-                if uploaded_file.name.endswith(".csv"):
-                    df = pd.read_csv(uploaded_file)
-                else:
-                    raw = pd.read_excel(uploaded_file, header=None)
-                    header_row_index = None
+    # Load the file
+    if uploaded_file.name.endswith(".csv"):
+        df = pd.read_csv(uploaded_file)
+    else:
+        raw = pd.read_excel(uploaded_file, header=None)
+        header_row_index = None
 
-                    # Search first 5 rows for 'Date' and time headers
-                    for i in range(min(5, len(raw))):
-                        row = raw.iloc[i].astype(str).str.lower()
-                        if any('date' in cell for cell in row) and any(':' in cell for cell in row):
-                            header_row_index = i
-                            break
+        for i in range(min(5, len(raw))):
+            row = raw.iloc[i].astype(str).str.lower()
+            if any('date' in cell for cell in row) and any(':' in cell for cell in row):
+                header_row_index = i
+                break
 
-                    if header_row_index is not None:
-                        df = pd.read_excel(uploaded_file, header=header_row_index)
-                    else:
-                        df = raw.copy()
+        if header_row_index is not None:
+            df = pd.read_excel(uploaded_file, header=header_row_index)
+        else:
+            df = raw.copy()
 
-                raw_cols = df.columns.tolist()
-                time_like_cols = [col for col in raw_cols if isinstance(col, str) and ":" in col]
-                has_date = any("date" in str(col).lower() for col in raw_cols)
-                is_wide = has_date and len(time_like_cols) >= 20
-                result, error = process_wide_format(df) if is_wide else process_tall_format(df)
+    raw_cols = df.columns.tolist()
+    time_like_cols = [col for col in raw_cols if isinstance(col, str) and ":" in col]
+    has_date = any("date" in str(col).lower() for col in raw_cols)
+    is_wide = has_date and len(time_like_cols) >= 20
 
-                if error:
-                    st.error(f"❌ {error}")
-                    continue
+    result, error = process_wide_format(df) if is_wide else process_tall_format(df)
 
-                result["Capacity_kW"] = capacity_kw
-                result["Excess_Power_kW"] = result["Capacity_kW"] - result["Max_Power_kW"]
-                    # Let user pick a strategy
-charger_strategy = st.radio(
-    f"Select charger input method for {uploaded_file.name}",
-    ["Auto-calculate both", "Input Level 2 Count", "Input Level 3 Count"],
-    horizontal=True
-)
+    if error:
+        st.error(f"❌ {error}")
+        continue
 
-# Create interactive charger count options
-if charger_strategy == "Input Level 3 Count":
-    l3_count = st.number_input("Number of Level 3 Chargers", min_value=0, step=1, key=f"l3_{uploaded_file.name}")
-    result["Used_L3_kW"] = l3_count * level3_kw
-    result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L3_kW"]
-    result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
-    result["Level 2 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level2_kw))
-    result["Level 3 Chargers"] = l3_count
+    result["Capacity_kW"] = capacity_kw
+    result["Excess_Power_kW"] = result["Capacity_kW"] - result["Max_Power_kW"]
 
-elif charger_strategy == "Input Level 2 Count":
-    l2_count = st.number_input("Number of Level 2 Chargers", min_value=0, step=1, key=f"l2_{uploaded_file.name}")
-    result["Used_L2_kW"] = l2_count * level2_kw
-    result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L2_kW"]
-    result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
-    result["Level 3 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level3_kw))
-    result["Level 2 Chargers"] = l2_count
+    # Charger logic
+    charger_strategy = st.radio(
+        f"Select charger input method for {uploaded_file.name}",
+        ["Auto-calculate both", "Input Level 2 Count", "Input Level 3 Count"],
+        horizontal=True
+    )
 
-else:
-    result["Level 2 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level2_kw))
-    result["Level 3 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level3_kw)) = result["Excess_Power_kW"].apply(lambda x: max(0, math.floor(x / level3_kw)))
+    if charger_strategy == "Input Level 3 Count":
+        l3_count = st.number_input("Number of Level 3 Chargers", min_value=0, step=1, key=f"l3_{uploaded_file.name}")
+        result["Used_L3_kW"] = l3_count * level3_kw
+        result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L3_kW"]
+        result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
+        result["Level 2 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level2_kw))
+        result["Level 3 Chargers"] = l3_count
 
-                st.dataframe(result)
+    elif charger_strategy == "Input Level 2 Count":
+        l2_count = st.number_input("Number of Level 2 Chargers", min_value=0, step=1, key=f"l2_{uploaded_file.name}")
+        result["Used_L2_kW"] = l2_count * level2_kw
+        result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L2_kW"]
+        result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
+        result["Level 3 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level3_kw))
+        result["Level 2 Chargers"] = l2_count
 
-                fig, ax = plt.subplots()
-                ax.plot(result["Hour"], result["Max_Power_kW"], label="Usage", color="black", linewidth=2)
-                ax.plot(result["Hour"], result["Capacity_kW"], label="Capacity", color="green", linestyle="--", linewidth=2)
-                ax.set_xlabel("Hour of Day")
-                ax.set_ylabel("Power (kW)")
-                ax.set_title(f"{uploaded_file.name} - Usage vs Capacity")
-                ax.legend()
-                st.pyplot(fig)
+    else:
+        result["Level 2 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level2_kw))
+        result["Level 3 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level3_kw))
 
-                csv = result.to_csv(index=False).encode("utf-8")
-                st.download_button("📥 Download CSV", data=csv, file_name=f"{uploaded_file.name}_analysis.csv")
+    # Output
+    st.dataframe(result)
 
-            except Exception as e:
-                st.error(f"❌ Failed to process {uploaded_file.name}: {str(e)}")
+    fig, ax = plt.subplots()
+    ax.plot(result["Hour"], result["Max_Power_kW"], label="Usage", color="black", linewidth=1)
+    ax.plot(result["Hour"], result["Capacity_kW"], label="Capacity", color="green", linestyle="-", linewidth=1)
+    ax.set_xlabel("Hour of Day")
+    ax.set_ylabel("Power (kW)")
+    ax.set_title(f"{uploaded_file.name} - Usage vs Capacity")
+    ax.legend()
+    st.pyplot(fig)
+
+    csv = result.to_csv(index=False).encode("utf-8")
+    st.download_button("📥 Download CSV", data=csv, file_name=f"{uploaded_file.name}_analysis.csv")
+
+except Exception as e:
+    st.error(f"❌ Failed to process {uploaded_file.name}: {str(e)}")
+
 
 # === TAB 2: HOW TO USE ===
 with tab2:
