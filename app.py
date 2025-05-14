@@ -40,6 +40,76 @@ st.title("EV Charger Feasibility Dashboard")
 tab1, tab2, tab3, tab4 = st.tabs(["📊 Analyzer", "💵 Cost & Report", "📁 How to Use", "ℹ️ About Fleet Zero"])
 
 # === TAB 1: ANALYZER ===
+with tab1:
+    # === PROCESSING FUNCTIONS ===
+def process_tall_format(df):
+    try:
+        if 'Unnamed: 1' in df.columns and df.iloc[0].astype(str).str.contains("DATE", case=False, na=False).any():
+            df.columns = df.iloc[0]
+            df = df[1:]
+        df.columns = [col.lower().strip() if isinstance(col, str) else col for col in df.columns]
+
+        if 'timestamp' in df.columns:
+            df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+        elif 'date' in df.columns and 'time' in df.columns:
+            df['timestamp'] = pd.to_datetime(df['date'] + ' ' + df['time'], errors='coerce')
+        else:
+            return None, "Missing 'timestamp' or 'date' + 'time' columns."
+
+        power_col = next((col for col in df.columns if isinstance(col, str) and 'kw' in col.lower()), None)
+        if power_col is None:
+            return None, "No 'kW' column found."
+
+        df["kW"] = pd.to_numeric(df[power_col], errors="coerce")
+        df = df.dropna(subset=["timestamp", "kW"])
+        df["hour"] = df["timestamp"].dt.hour
+        hourly = df.groupby("hour")["kW"].max().reset_index()
+        hourly.columns = ["Hour", "Max_Power_kW"]
+        return hourly, None
+    except Exception as e:
+        return None, f"Error in tall format: {e}"
+
+def process_wide_format(df):
+    try:
+        if df.iloc[0].astype(str).str.contains("Date", case=False, na=False).any():
+            df.columns = df.iloc[0]
+            df = df[1:].copy()
+
+        df = df.rename(columns={df.columns[0]: "date"})
+        
+        time_cols = [col for col in df.columns if isinstance(col, str) and ":" in col]
+        daily_total_col = next((col for col in df.columns if 'total' in str(col).lower() or 'kwh' in str(col).lower()), None)
+
+        if len(time_cols) > 0:
+            df_melted = df.melt(id_vars=["date"], value_vars=time_cols, var_name="time", value_name="kWh")
+            df_melted["timestamp"] = pd.to_datetime(df_melted["date"] + " " + df_melted["time"], errors='coerce')
+            df_melted = df_melted[df_melted['timestamp'].notna()]
+            df_melted["kWh"] = pd.to_numeric(df_melted["kWh"], errors="coerce")
+            df_melted = df_melted.dropna(subset=["kWh"])
+            interval_guess = 0.25 if len(time_cols) >= 96 else 1.0
+            df_melted["kW"] = df_melted["kWh"] / interval_guess
+            df_melted["hour"] = df_melted["timestamp"].dt.hour
+            hourly = df_melted.groupby("hour")["kW"].max().reset_index()
+            hourly.columns = ["Hour", "Max_Power_kW"]
+            return hourly, None
+
+        elif daily_total_col:
+            df["date"] = pd.to_datetime(df["date"], errors="coerce")
+            df["kWh"] = pd.to_numeric(df[daily_total_col], errors="coerce")
+            df = df.dropna(subset=["date", "kWh"])
+            st.warning("⚠️ Daily kWh file detected — assuming uniform 24-hour usage.")
+            df["kW_avg"] = df["kWh"] / 24
+            hourly = pd.DataFrame({
+                "Hour": list(range(24)),
+                "Max_Power_kW": [df["kW_avg"].max()] * 24
+            })
+            return hourly, None
+
+        else:
+            return None, "Unsupported format: no valid time columns or total kWh column found."
+
+    except Exception as e:
+        return None, f"Error in wide format: {e}"
 
 # === TAB 1: ANALYZER ===
 with tab1:
@@ -175,6 +245,8 @@ with tab1:
 
             except Exception as e:
                 st.error(f"❌ Failed to process {uploaded_file.name}: {str(e)}")
+    ...
+
 # === TAB 2: COST & REPORT ===
 with tab2:
     st.header("💵 Cost Estimation & Excel Export")
@@ -201,6 +273,8 @@ with tab2:
             custom_l3_kw = st.number_input("Custom Level 3 Charger Size (kW)", value=50.0)
             custom_l3_count = st.number_input("Level 3 Chargers", value=1, step=1)
 
+            site_capacity = st.number_input("Site Capacity for Reference Line (kW)", value=100)
+
             df["Custom_Load_kW"] = (custom_l2_kw * custom_l2_count) + (custom_l3_kw * custom_l3_count)
             df["Total_Load_kW"] = df["Max_Power_kW"] + df["Custom_Load_kW"]
             df["Energy_Cost"] = df["Total_Load_kW"] * df["Hour"].map(hourly_rate)
@@ -210,7 +284,7 @@ with tab2:
             fig = px.line(df, x="Hour", y=["Max_Power_kW", "Total_Load_kW"],
                           labels={"value": "kW", "Hour": "Hour of Day"},
                           title="Load vs Chargers with Cost Estimation")
-            fig.add_scatter(x=df["Hour"], y=[100]*24, mode="lines", name="Capacity")
+            fig.add_scatter(x=df["Hour"], y=[site_capacity]*24, mode="lines", name="Capacity")
             st.plotly_chart(fig, use_container_width=True)
 
             output = io.BytesIO()
@@ -218,7 +292,7 @@ with tab2:
                 df.to_excel(writer, sheet_name='Results', index=False)
                 workbook = writer.book
                 worksheet = writer.sheets['Results']
-                worksheet.set_column('A:D', 18)
+                worksheet.set_column('A:E', 20)
             st.download_button("📥 Download Excel Report", output.getvalue(), "ev_report.xlsx")
 
 # === TAB 3: HOW TO USE ===
