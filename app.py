@@ -220,11 +220,10 @@ with tab2:
 with tab3:
     st.header("🌱 About Fleet Zero")
     st.markdown("""
-    Fleet Zero is committed to powering the future of electric fleets through smart, scalable, and data-driven infrastructure tools.
-
-    - 🌍 Sustainable mobility
-    - 🔌 EV readiness
-    - 📊 Infrastructure planning
+   
+We are sustainable and experienced advisors
+FleetZero is your trusted advisor and solution provider for your fleet transition journey. We help light to heavy duty fleets navigate their route to zero emissions. 
+Our turnkey solutions remove the emission transition headache to keep you on the road.
 
     **Website**: [fleetzero.ai](https://fleetzero.ai)  
     **Email**: [Info@fleetzero.ai](mailto:info@fleetzero.ai)
