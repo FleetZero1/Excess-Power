@@ -77,26 +77,47 @@ with tab1:
         except Exception as e:
             return None, f"Error in tall format: {e}"
 
-    def process_wide_format(df):
-        try:
-            df.columns = df.iloc[1]
-            df = df[2:].copy()
-            df = df.rename(columns={df.columns[0]: "date"})
+   def process_wide_format(df):
+    try:
+        df.columns = df.iloc[1]
+        df = df[2:].copy()
+        df = df.rename(columns={df.columns[0]: "date"})
 
-            time_cols = [col for col in df.columns if isinstance(col, str) and ":" in col]
-            if not time_cols:
-                return None, "No valid time columns (e.g., 0:15, 1:00)"
+        time_cols = [col for col in df.columns if isinstance(col, str) and ":" in col]
+        daily_total_col = next((col for col in df.columns if 'total' in str(col).lower() or 'kwh' in str(col).lower()), None)
 
-            df_melted = df.melt(id_vars=["date"], value_vars=time_cols, var_name="time", value_name="kW")
+        # 🟢 Case: Wide format (15-min or hourly intervals)
+        if len(time_cols) > 4:
+            df_melted = df.melt(id_vars=["date"], value_vars=time_cols, var_name="time", value_name="kWh")
             df_melted["timestamp"] = pd.to_datetime(df_melted["date"] + " " + df_melted["time"], errors='coerce')
-            df_melted["kW"] = pd.to_numeric(df_melted["kW"], errors="coerce")
-            df_melted = df_melted.dropna(subset=["timestamp", "kW"])
+            df_melted["kWh"] = pd.to_numeric(df_melted["kWh"], errors="coerce")
+            df_melted = df_melted.dropna(subset=["timestamp", "kWh"])
+            df_melted["kW"] = df_melted["kWh"] / 0.25  # assume 15-minute data
             df_melted["hour"] = df_melted["timestamp"].dt.hour
             hourly = df_melted.groupby("hour")["kW"].max().reset_index()
             hourly.columns = ["Hour", "Max_Power_kW"]
             return hourly, None
-        except Exception as e:
-            return None, f"Error in wide format: {e}"
+
+        # 🟡 Case: Daily total file (e.g., Date + kWh)
+        elif daily_total_col:
+            df["date"] = pd.to_datetime(df["date"], errors="coerce")
+            df["kWh"] = pd.to_numeric(df[daily_total_col], errors="coerce")
+            df = df.dropna(subset=["date", "kWh"])
+
+            st.warning("⚠️ Daily total file detected — estimating average hourly power assuming 24-hour usage.")
+            df["kW_avg"] = df["kWh"] / 24
+            hourly = pd.DataFrame({
+                "Hour": list(range(24)),
+                "Max_Power_kW": [df["kW_avg"].max()] * 24
+            })
+            return hourly, None
+
+        else:
+            return None, "Unsupported format: missing time columns or total energy column."
+
+    except Exception as e:
+        return None, f"Error in wide/daily format: {e}"
+
 
     if uploaded_files:
         for uploaded_file in uploaded_files:
@@ -177,7 +198,7 @@ with tab2:
     ---
     ### 📎 Need Help?
 
-    Contact **Fleet Zero** at: [info@fleetzero.com](mailto:info@fleetzero.com)
+    Contact **Fleet Zero** at: [info@fleetzero.com](mailto:info@fleetzero.ai)
     """)
 
 # ========== ℹ️ ABOUT ==========
@@ -191,5 +212,5 @@ with tab3:
     - 📊 Infrastructure planning
 
     **Website**: [fleetzero.ai](https://fleetzero.ai)  
-    **Email**: [Info@fleetzero.com](mailto:info@fleetzero.com)
+    **Email**: [Info@fleetzero.com](mailto:info@fleetzero.ai)
     """)
