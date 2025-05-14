@@ -167,6 +167,8 @@ with tab1:
                     l3_count = st.number_input("Number of Level 3 Chargers", min_value=0, step=1, key=f"l3_{uploaded_file.name}")
                     result["Used_L3_kW"] = l3_count * level3_kw
                     result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L3_kW"]
+                    if (result["Remaining_kW"] < 0).any():
+                        st.error("❌ Level 3 charger capacity exceeds available power!")
                     result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
                     result["Level 2 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level2_kw))
                     result["Level 3 Chargers"] = l3_count
@@ -175,6 +177,8 @@ with tab1:
                     l2_count = st.number_input("Number of Level 2 Chargers", min_value=0, step=1, key=f"l2_{uploaded_file.name}")
                     result["Used_L2_kW"] = l2_count * level2_kw
                     result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L2_kW"]
+                    if (result["Remaining_kW"] < 0).any():
+                        st.error("❌ Level 2 charger capacity exceeds available power!")
                     result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
                     result["Level 3 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level3_kw))
                     result["Level 2 Chargers"] = l2_count
