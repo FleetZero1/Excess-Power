@@ -111,8 +111,8 @@ def process_wide_format(df):
 with tab1:
     uploaded_files = st.file_uploader("📁 Upload load profile files", type=["csv", "xlsx"], accept_multiple_files=True)
 
-    level2_kw = st.number_input("🔋 Level 2 Charger (kW)", min_value=1.0, value=7.2)
-    level3_kw = st.number_input("⚡ Level 3 Charger (kW)", min_value=10.0, value=50.0)
+    level2_kw = st.number_input("🔋 Global Level 2 Charger Size (kW)", min_value=1.0, value=7.2)
+    level3_kw = st.number_input("⚡ Global Level 3 Charger Size (kW)", min_value=10.0, value=50.0)
 
     if uploaded_files:
         for uploaded_file in uploaded_files:
@@ -157,48 +157,92 @@ with tab1:
                 result["Capacity_kW"] = capacity_kw
                 result["Excess_Power_kW"] = result["Capacity_kW"] - result["Max_Power_kW"]
 
-                charger_strategy = st.radio(
-                    f"Select charger input method for {uploaded_file.name}",
-                    ["Auto-calculate both", "Input Level 2 Count", "Input Level 3 Count"],
-                    horizontal=True
-                )
+                # === OPTIONAL CUSTOM TEST ===
+                custom_test = st.checkbox(f"🔧 Enable Custom Charger Test for {uploaded_file.name}", key=f"custom_{uploaded_file.name}")
 
-                if charger_strategy == "Input Level 3 Count":
-                    l3_count = st.number_input("Number of Level 3 Chargers", min_value=0, step=1, key=f"l3_{uploaded_file.name}")
-                    result["Used_L3_kW"] = l3_count * level3_kw
-                    result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L3_kW"]
-                    result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
-                    result["Level 2 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level2_kw))
-                    result["Level 3 Chargers"] = l3_count
+                if custom_test:
+                    custom_l2_kw = st.number_input("Custom Level 2 Charger Size (kW)", min_value=1.0, value=7.2, key=f"cust_l2_{uploaded_file.name}")
+                    custom_l2_count = st.number_input("Number of Level 2 Chargers", min_value=0, step=1, key=f"cust_l2_count_{uploaded_file.name}")
 
-                elif charger_strategy == "Input Level 2 Count":
-                    l2_count = st.number_input("Number of Level 2 Chargers", min_value=0, step=1, key=f"l2_{uploaded_file.name}")
-                    result["Used_L2_kW"] = l2_count * level2_kw
-                    result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L2_kW"]
-                    result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
-                    result["Level 3 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level3_kw))
-                    result["Level 2 Chargers"] = l2_count
+                    custom_l3_kw = st.number_input("Custom Level 3 Charger Size (kW)", min_value=10.0, value=50.0, key=f"cust_l3_{uploaded_file.name}")
+                    custom_l3_count = st.number_input("Number of Level 3 Chargers", min_value=0, step=1, key=f"cust_l3_count_{uploaded_file.name}")
+
+                    result["Custom_Load_kW"] = (custom_l2_kw * custom_l2_count) + (custom_l3_kw * custom_l3_count)
+                    result["Total_Load_kW"] = result["Max_Power_kW"] + result["Custom_Load_kW"]
+
+                    if (result["Total_Load_kW"] > result["Capacity_kW"]).any():
+                        st.error("❌ Custom charger combination exceeds capacity at one or more hours.")
+                    else:
+                        st.success("✅ Custom charger combination fits within available capacity.")
+
+                    fig2, ax2 = plt.subplots()
+                    ax2.plot(result["Hour"], result["Total_Load_kW"], label="Total Load (Usage + Custom Chargers)", color="red")
+                    ax2.plot(result["Hour"], result["Capacity_kW"], label="Capacity", color="green", linestyle="--")
+                    ax2.set_xlabel("Hour")
+                    ax2.set_ylabel("Power (kW)")
+                    ax2.set_title(f"{uploaded_file.name} – Custom Load vs Capacity")
+                    ax2.legend()
+                    st.pyplot(fig2)
 
                 else:
-                    result["Level 2 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level2_kw))
-                    result["Level 3 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level3_kw))
+                    charger_strategy = st.radio(
+                        f"Select charger input method for {uploaded_file.name}",
+                        ["Auto-calculate both", "Input Level 2 Count", "Input Level 3 Count"],
+                        horizontal=True
+                    )
+
+                    if charger_strategy == "Input Level 3 Count":
+                        l3_count = st.number_input("Number of Level 3 Chargers", min_value=0, step=1, key=f"l3_{uploaded_file.name}")
+                        result["Used_L3_kW"] = l3_count * level3_kw
+                        result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L3_kW"]
+                        result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
+                        result["Level 2 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level2_kw))
+                        result["Level 3 Chargers"] = l3_count
+
+                    elif charger_strategy == "Input Level 2 Count":
+                        l2_count = st.number_input("Number of Level 2 Chargers", min_value=0, step=1, key=f"l2_{uploaded_file.name}")
+                        result["Used_L2_kW"] = l2_count * level2_kw
+                        result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L2_kW"]
+                        result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
+                        result["Level 3 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level3_kw))
+                        result["Level 2 Chargers"] = l2_count
+
+                    else:
+                        result["Level 2 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level2_kw))
+                        result["Level 3 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level3_kw))
+
+                    fig, ax = plt.subplots()
+                    ax.plot(result["Hour"], result["Max_Power_kW"], label="Usage", color="black", linewidth=2)
+                    ax.plot(result["Hour"], result["Capacity_kW"], label="Capacity", color="green", linestyle="--", linewidth=2)
+                    ax.set_xlabel("Hour of Day")
+                    ax.set_ylabel("Power (kW)")
+                    ax.set_title(f"{uploaded_file.name} - Usage vs Capacity")
+                    ax.legend()
+                    st.pyplot(fig)
 
                 st.dataframe(result)
-
-                fig, ax = plt.subplots()
-                ax.plot(result["Hour"], result["Max_Power_kW"], label="Usage", color="black", linewidth=2)
-                ax.plot(result["Hour"], result["Capacity_kW"], label="Capacity", color="green", linestyle="--", linewidth=2)
-                ax.set_xlabel("Hour of Day")
-                ax.set_ylabel("Power (kW")
-                ax.set_title(f"{uploaded_file.name} - Usage vs Capacity")
-                ax.legend()
-                st.pyplot(fig)
-
                 csv = result.to_csv(index=False).encode("utf-8")
                 st.download_button("📥 Download CSV", data=csv, file_name=f"{uploaded_file.name}_analysis.csv")
 
             except Exception as e:
                 st.error(f"❌ Failed to process {uploaded_file.name}: {str(e)}")
+
+# === TAB 2: HOW TO USE ===
+with tab2:
+    st.header("📁 How to Use This Tool")
+    st.markdown("""
+    This tool helps you calculate **available power** at EV charging sites using load profile files and utility power input.
+    ...
+    """)
+
+# === TAB 3: ABOUT ===
+with tab3:
+    st.header("🌱 About Fleet Zero")
+    st.markdown("""
+    Fleet Zero is your trusted advisor and solution provider for your fleet transition journey.
+    ...
+    """)
+
 
 # === TAB 2: HOW TO USE ===
 with tab2:
