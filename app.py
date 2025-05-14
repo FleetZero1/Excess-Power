@@ -198,7 +198,7 @@ with tab2:
     ---
     ### 📎 Need Help?
 
-    Contact **Fleet Zero** at: [info@fleetzero.com](mailto:info@fleetzero.ai)
+    Contact **Fleet Zero** at: [info@fleetzero.ai](mailto:info@fleetzero.ai)
     """)
 
 # ========== ℹ️ ABOUT ==========
@@ -212,5 +212,5 @@ with tab3:
     - 📊 Infrastructure planning
 
     **Website**: [fleetzero.ai](https://fleetzero.ai)  
-    **Email**: [Info@fleetzero.com](mailto:info@fleetzero.ai)
+    **Email**: [Info@fleetzero.ai](mailto:info@fleetzero.ai)
     """)
