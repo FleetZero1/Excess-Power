@@ -77,7 +77,7 @@ with tab1:
         except Exception as e:
             return None, f"Error in tall format: {e}"
 
-       def process_wide_format(df):
+    def process_wide_format(df):
         try:
             df.columns = df.iloc[1]
             df = df[2:].copy()
