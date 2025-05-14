@@ -1,9 +1,11 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import plotly.express as px
 import math
 from PIL import Image
 import base64
+from io import BytesIO
 
 # === BACKGROUND ===
 def add_bg_from_local(image_file):
@@ -33,6 +35,23 @@ logo = Image.open("logo.png")
 st.image(logo, width=200)
 
 st.title("EV Charger Feasibility Dashboard")
+
+# === TOU COST ESTIMATION FUNCTION ===
+def apply_tou_rates(df, hour_column='Hour', power_column='Max_Power_kW'):
+    tou_rates = [
+        {"start_hour": 0, "end_hour": 6, "rate": 0.10},
+        {"start_hour": 6, "end_hour": 18, "rate": 0.20},
+        {"start_hour": 18, "end_hour": 22, "rate": 0.30},
+        {"start_hour": 22, "end_hour": 24, "rate": 0.15}
+    ]
+    def get_rate(hour):
+        for period in tou_rates:
+            if period["start_hour"] <= hour < period["end_hour"]:
+                return period["rate"]
+        return 0.0
+    df["TOU_Rate"] = df[hour_column].apply(get_rate)
+    df["Estimated_Cost"] = df[power_column] * df["TOU_Rate"]
+    return df
 
 # === TABS ===
 tab1, tab2, tab3 = st.tabs(["📊 Analyzer", "📁 How to Use", "ℹ️ About Fleet Zero"])
@@ -72,7 +91,6 @@ def process_wide_format(df):
             df = df[1:].copy()
 
         df = df.rename(columns={df.columns[0]: "date"})
-        
         time_cols = [col for col in df.columns if isinstance(col, str) and ":" in col]
         daily_total_col = next((col for col in df.columns if 'total' in str(col).lower() or 'kwh' in str(col).lower()), None)
 
@@ -164,67 +182,19 @@ with tab1:
                 result["Capacity_kW"] = capacity_kw
                 result["Excess_Power_kW"] = result["Capacity_kW"] - result["Max_Power_kW"]
 
-                custom_test = st.checkbox(f"🔧 Enable Custom Charger Test for {uploaded_file.name}", key=f"custom_{uploaded_file.name}")
+                # Apply TOU-based energy cost
+                result = apply_tou_rates(result)
 
-                if custom_test:
-                    custom_l2_kw = st.number_input("Custom Level 2 Charger Size (kW)", min_value=1.0, value=7.2, key=f"cust_l2_{uploaded_file.name}")
-                    custom_l2_count = st.number_input("Number of Level 2 Chargers", min_value=0, step=1, key=f"cust_l2_count_{uploaded_file.name}")
+                # Plotting method toggle
+                plot_type = st.radio("📈 Plot Type", ["Static (Matplotlib)", "Interactive (Plotly)"], horizontal=True, key=f"plot_type_{uploaded_file.name}")
 
-                    custom_l3_kw = st.number_input("Custom Level 3 Charger Size (kW)", min_value=10.0, value=50.0, key=f"cust_l3_{uploaded_file.name}")
-                    custom_l3_count = st.number_input("Number of Level 3 Chargers", min_value=0, step=1, key=f"cust_l3_count_{uploaded_file.name}")
-
-                    result["Custom_Load_kW"] = (custom_l2_kw * custom_l2_count) + (custom_l3_kw * custom_l3_count)
-                    result["Total_Load_kW"] = result["Max_Power_kW"] + result["Custom_Load_kW"]
-
-                    if (result["Total_Load_kW"] > result["Capacity_kW"]).any():
-                        st.error("❌ Custom charger combination exceeds capacity at one or more hours.")
-                    else:
-                        st.success("✅ Custom charger combination fits within available capacity.")
-
-                    st.dataframe(result)
-
-                    fig2, ax2 = plt.subplots()
-                    ax2.plot(result["Hour"], result["Total_Load_kW"], label="Total Load (Usage + Custom Chargers)", color="red")
-                    ax2.plot(result["Hour"], result["Capacity_kW"], label="Capacity", color="green", linestyle="--")
-                    ax2.set_xlabel("Hour")
-                    ax2.set_ylabel("Power (kW)")
-                    ax2.set_xticks(range(0, 24, tick_spacing))
-                    if use_y_limits and y_max > y_min:
-                        ax2.set_ylim(y_min, y_max)
-                    ax2.set_title(f"{uploaded_file.name} – Custom Load vs Capacity")
-                    ax2.legend()
-                    st.pyplot(fig2)
-
+                fig, ax = plt.subplots()
+                if plot_type == "Interactive (Plotly)":
+                    fig_plotly = px.line(result, x="Hour", y=["Max_Power_kW", "Capacity_kW"],
+                                         labels={"value": "Power (kW)", "Hour": "Hour of Day"},
+                                         title=f"{uploaded_file.name} – Power Usage vs Capacity")
+                    st.plotly_chart(fig_plotly, use_container_width=True)
                 else:
-                    charger_strategy = st.radio(
-                        f"Select charger input method for {uploaded_file.name}",
-                        ["Auto-calculate both", "Input Level 2 Count", "Input Level 3 Count"],
-                        horizontal=True
-                    )
-
-                    if charger_strategy == "Input Level 3 Count":
-                        l3_count = st.number_input("Number of Level 3 Chargers", min_value=0, step=1, key=f"l3_{uploaded_file.name}")
-                        result["Used_L3_kW"] = l3_count * level3_kw
-                        result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L3_kW"]
-                        result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
-                        result["Level 2 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level2_kw))
-                        result["Level 3 Chargers"] = l3_count
-
-                    elif charger_strategy == "Input Level 2 Count":
-                        l2_count = st.number_input("Number of Level 2 Chargers", min_value=0, step=1, key=f"l2_{uploaded_file.name}")
-                        result["Used_L2_kW"] = l2_count * level2_kw
-                        result["Remaining_kW"] = result["Excess_Power_kW"] - result["Used_L2_kW"]
-                        result["Remaining_kW"] = result["Remaining_kW"].apply(lambda x: max(0, x))
-                        result["Level 3 Chargers"] = result["Remaining_kW"].apply(lambda x: math.floor(x / level3_kw))
-                        result["Level 2 Chargers"] = l2_count
-
-                    else:
-                        result["Level 2 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level2_kw))
-                        result["Level 3 Chargers"] = result["Excess_Power_kW"].apply(lambda x: math.floor(x / level3_kw))
-
-                    st.dataframe(result)
-
-                    fig, ax = plt.subplots()
                     ax.plot(result["Hour"], result["Max_Power_kW"], label="Usage", color="black", linewidth=2)
                     ax.plot(result["Hour"], result["Capacity_kW"], label="Capacity", color="green", linestyle="--", linewidth=2)
                     ax.set_xlabel("Hour of Day")
@@ -236,11 +206,23 @@ with tab1:
                     ax.legend()
                     st.pyplot(fig)
 
+                st.dataframe(result)
+
+                # CSV export
                 csv = result.to_csv(index=False).encode("utf-8")
                 st.download_button("📥 Download CSV", data=csv, file_name=f"{uploaded_file.name}_analysis.csv")
 
+                # Excel export
+                excel_buffer = BytesIO()
+                with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
+                    result.to_excel(writer, index=False, sheet_name='Analysis')
+                st.download_button("📥 Download Excel", data=excel_buffer.getvalue(),
+                                   file_name=f"{uploaded_file.name}_analysis.xlsx",
+                                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
             except Exception as e:
                 st.error(f"❌ Failed to process {uploaded_file.name}: {str(e)}")
+
 
 # === TAB 2: HOW TO USE ===
 with tab2:
