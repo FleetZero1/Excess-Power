@@ -165,22 +165,7 @@ with tab1:
                 csv = result.to_csv(index=False).encode("utf-8")
                 st.download_button("📥 Download CSV", data=csv, file_name=f"{uploaded_file.name}_analysis.csv")
 
-                # === OPTIMAL MIX BLOCK ===
-if st.checkbox(f"🔍 Suggest optimal charger mix for {uploaded_file.name}?", key=f"optmix_toggle_{uploaded_file.name}"):
-    opt_sizes_input = st.text_input(
-        "Suggest optimal mix from these Level 3 sizes (kW)",
-        value="150, 250",
-        key=f"opt_l3_{uploaded_file.name}"
-    )
-
-    try:
-        opt_sizes = [int(s.strip()) for s in opt_sizes_input.split(",") if s.strip().isdigit()]
-        if opt_sizes:
-            compute_optimal_mix(result, opt_sizes, "L3")
-    except Exception:
-        st.warning("⚠️ Could not process optimal mix sizes. Use numbers like 150,250")
-
-st.dataframe(result)
+                st.dataframe(result)
 
                 fig, ax = plt.subplots()
                 ax.plot(result["Hour"], result["Max_Power_kW"], label="Usage", color="black", linewidth=2)
@@ -193,6 +178,23 @@ st.dataframe(result)
 
             except Exception as e:
                 st.error(f"❌ Failed to process {uploaded_file.name}: {str(e)}")
+
+            # === OPTIMAL MIX BLOCK (OUTSIDE TRY) ===
+            if st.checkbox(f"🔍 Suggest optimal charger mix for {uploaded_file.name}?", key=f"optmix_toggle_{uploaded_file.name}"):
+                opt_sizes_input = st.text_input(
+                    "Suggest optimal mix from these Level 3 sizes (kW)",
+                    value="150, 250",
+                    key=f"opt_l3_{uploaded_file.name}"
+                )
+
+                try:
+                    opt_sizes = [int(s.strip()) for s in opt_sizes_input.split(",") if s.strip().isdigit()]
+                    if opt_sizes:
+                        compute_optimal_mix(result, opt_sizes, "L3")
+                        st.dataframe(result)
+                except Exception:
+                    st.warning("⚠️ Could not process optimal mix sizes. Use numbers like 150,250")
+
 
 
 
