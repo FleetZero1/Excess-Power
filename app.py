@@ -155,15 +155,15 @@ with tab1:
                     header_row_index = None
                     for i in range(min(5, len(raw))):
                         row = raw.iloc[i].astype(str).str.lower()
-                        if any("date" in cell for cell in row) and any(":" in cell for cell in row):
+                        if any("date" in cell for cell in row) or any("time" in cell for cell in row):
                             header_row_index = i
                             break
                     if header_row_index is not None:
                         df = pd.read_excel(uploaded_file, header=header_row_index)
-                        is_wide = True
+                        is_wide = df.shape[1] > 10 and any(":" in str(col) for col in df.columns)
                     else:
                         df = raw.copy()
-                        is_wide = False
+                        is_wide = df.shape[1] > 10 and any(":" in str(col) for col in df.columns)
 
                 result, error = process_wide_format(df) if is_wide else process_tall_format(df)
                 if error:
@@ -207,56 +207,3 @@ with tab1:
                         st.dataframe(result)
                 except Exception:
                     st.warning("⚠️ Could not process optimal mix sizes. Use numbers like 150,250")
-
-
-
-
-
-# === TAB 2: HOW TO USE ===
-with tab2:
-    st.header("📁 How to Use This Tool")
-    st.markdown("""
-    This tool helps you calculate **available power** at EV charging sites using load profile files and utility power input.
-
-    ---
-    ### 🛠 Step-by-Step Instructions
-
-    **1. Prepare your data**
-    - Use 15-minute or 1-hour interval load profile files (CSV or Excel)
-    - Ensure the first column is the **Date** and the rest are time intervals (e.g., `0:15`, `1:00`, ...)
-
-    **2. Upload files**
-    - Upload one or more usage files using the uploader under the **"📊 Analyzer" tab**
-
-    **3. Enter site details**
-    - For each site, enter the **utility power capacity (in kW)**
-    - You can use default charger sizes or enter your own custom ones
-
-    **4. Review output**
-    - The tool will calculate:
-        - Hourly max demand
-        - Excess available power
-        - Max chargers that can be supported
-    - Optionally test your own charger setup
-
-    ---
-    ### 📎 Need Help?
-
-    Contact **Fleet Zero** at: [info@fleetzero.ai](mailto:info@fleetzero.ai)
-    """)
-
-# === TAB 3: ABOUT ===
-with tab3:
-    st.header("🌱 About Fleet Zero")
-    st.markdown("""
-Fleet Zero is your trusted advisor and solution provider for your fleet transition journey.
-
-We help **light to heavy duty fleets** navigate their route to **zero emissions** by offering:
-- 🎯 Strategic fleet electrification planning
-- 🔌 Charging infrastructure design and analysis
-- 🧠 Data-driven operational insights
-- 🛠 Turnkey transition support
-
-📍 **Website**: [fleetzero.ai](https://fleetzero.ai)  
-📧 **Email**: [info@fleetzero.ai](mailto:info@fleetzero.ai)
-""")
