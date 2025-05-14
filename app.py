@@ -182,7 +182,7 @@ with tab1:
             # === OPTIMAL MIX BLOCK (OUTSIDE TRY) ===
             if st.checkbox(f"🔍 Suggest optimal charger mix for {uploaded_file.name}?", key=f"optmix_toggle_{uploaded_file.name}"):
                 opt_sizes_input = st.text_input(
-                    "Suggest optimal mix from these Level 3 sizes (kW)",
+                    "Suggest optimal mix from these Level 2/3 sizes (kW)",
                     value="150, 250",
                     key=f"opt_l3_{uploaded_file.name}"
                 )
