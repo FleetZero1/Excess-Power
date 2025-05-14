@@ -227,21 +227,7 @@ with tab1:
             except Exception as e:
                 st.error(f"❌ Failed to process {uploaded_file.name}: {str(e)}")
 
-# === TAB 2: HOW TO USE ===
-with tab2:
-    st.header("📁 How to Use This Tool")
-    st.markdown("""
-    This tool helps you calculate **available power** at EV charging sites using load profile files and utility power input.
-    ...
-    """)
 
-# === TAB 3: ABOUT ===
-with tab3:
-    st.header("🌱 About Fleet Zero")
-    st.markdown("""
-    Fleet Zero is your trusted advisor and solution provider for your fleet transition journey.
-    ...
-    """)
 
 
 # === TAB 2: HOW TO USE ===
