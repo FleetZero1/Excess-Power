@@ -72,7 +72,6 @@ def process_wide_format(df):
             df = df[1:].copy()
 
         df = df.rename(columns={df.columns[0]: "date"})
-        
         time_cols = [col for col in df.columns if isinstance(col, str) and ":" in col]
         daily_total_col = next((col for col in df.columns if 'total' in str(col).lower() or 'kwh' in str(col).lower()), None)
 
@@ -155,14 +154,14 @@ with tab1:
                     header_row_index = None
                     for i in range(min(5, len(raw))):
                         row = raw.iloc[i].astype(str).str.lower()
-                        if any("date" in cell for cell in row) or any("time" in cell for cell in row):
+                        if any("date" in cell for cell in row) and any(":" in cell for cell in row):
                             header_row_index = i
                             break
                     if header_row_index is not None:
                         df = pd.read_excel(uploaded_file, header=header_row_index)
-                        is_wide = df.shape[1] > 10 and any(":" in str(col) for col in df.columns)
+                        is_wide = True
                     else:
-                        df = raw.copy()
+                        df = pd.read_excel(uploaded_file)
                         is_wide = df.shape[1] > 10 and any(":" in str(col) for col in df.columns)
 
                 result, error = process_wide_format(df) if is_wide else process_tall_format(df)
@@ -178,6 +177,21 @@ with tab1:
                 csv = result.to_csv(index=False).encode("utf-8")
                 st.download_button("📥 Download CSV", data=csv, file_name=f"{uploaded_file.name}_analysis.csv")
 
+                if st.checkbox(f"🔍 Suggest optimal charger mix for {uploaded_file.name}?", key=f"optmix_toggle_{uploaded_file.name}"):
+                    opt_sizes_input = st.text_input(
+                        "Suggest optimal mix from these Level 3 sizes (kW)",
+                        value="150, 250",
+                        key=f"opt_l3_{uploaded_file.name}"
+                    )
+
+                    try:
+                        opt_sizes = [int(s.strip()) for s in opt_sizes_input.split(",") if s.strip().isdigit()]
+                        if opt_sizes:
+                            compute_optimal_mix(result, opt_sizes, "L3")
+                            st.success("✅ Optimal mix calculated.")
+                    except Exception:
+                        st.warning("⚠️ Could not process optimal mix sizes. Use numbers like 150,250")
+
                 st.dataframe(result)
 
                 fig, ax = plt.subplots()
@@ -192,18 +206,3 @@ with tab1:
             except Exception as e:
                 st.error(f"❌ Failed to process {uploaded_file.name}: {str(e)}")
 
-            # === OPTIMAL MIX BLOCK (OUTSIDE TRY) ===
-            if st.checkbox(f"🔍 Suggest optimal charger mix for {uploaded_file.name}?", key=f"optmix_toggle_{uploaded_file.name}"):
-                opt_sizes_input = st.text_input(
-                    "Suggest optimal mix from these Level 3 sizes (kW)",
-                    value="150, 250",
-                    key=f"opt_l3_{uploaded_file.name}"
-                )
-
-                try:
-                    opt_sizes = [int(s.strip()) for s in opt_sizes_input.split(",") if s.strip().isdigit()]
-                    if opt_sizes:
-                        compute_optimal_mix(result, opt_sizes, "L3")
-                        st.dataframe(result)
-                except Exception:
-                    st.warning("⚠️ Could not process optimal mix sizes. Use numbers like 150,250")
