@@ -204,6 +204,13 @@ opt_sizes_input = st.text_input(
 )
 
 try:
+    opt_sizes = [int(s.strip()) for s in opt_sizes_input.split(",") if s.strip().isdigit()]
+    if opt_sizes:
+        compute_optimal_mix(result, opt_sizes, "L3")
+except Exception:
+    st.warning("⚠️ Could not process optimal mix sizes. Use numbers like 150,250")
+
+try:
     st.warning("⚠️ Could not process optimal mix sizes. Use numbers like 150,250")
 
 st.dataframe(result)
