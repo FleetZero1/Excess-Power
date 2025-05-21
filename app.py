@@ -108,7 +108,6 @@ def process_wide_format(df):
         return None, f"Error in wide format: {e}"
 
 # === TAB 1: ANALYZER ===
-# === TAB 1: ANALYZER ===
 with tab1:
     uploaded_files = st.file_uploader("📁 Upload load profile files", type=["csv", "xlsx"], accept_multiple_files=True)
 
@@ -127,7 +126,6 @@ with tab1:
             )
 
             tick_spacing = st.number_input("📏 X-axis Tick Interval (hours)", min_value=1, max_value=24, value=3, step=1, key=f"tick_{uploaded_file.name}")
-
             st.markdown("### 📐 Y-axis Range (optional)")
             y_min = st.number_input("Minimum Y-axis (kW)", min_value=0.0, value=0.0, step=1.0, key=f"ymin_{uploaded_file.name}")
             y_max = st.number_input("Maximum Y-axis (kW)", min_value=0.0, value=0.0, step=1.0, key=f"ymax_{uploaded_file.name}")
@@ -165,50 +163,63 @@ with tab1:
 
                 custom_test = st.checkbox(f"🔧 Enable Custom Charger Test for {uploaded_file.name}", key=f"custom_{uploaded_file.name}")
 
-                                if custom_test:
-                    st.markdown("### ⚙️ Define Up to 5 Custom Charger Types")
-                    custom_chargers = []
-                    for i in range(1, 6):
-                        col1, col2, col3 = st.columns([3, 3, 2])
-                        with col1:
-                            label = st.text_input(f"Charger {i} Name", value=f"Type-{i}", key=f"label_{uploaded_file.name}_{i}")
-                        with col2:
-                            kw = st.number_input(f"{label} Power (kW)", min_value=1.0, step=1.0, key=f"kw_{uploaded_file.name}_{i}")
-                        with col3:
-                            count = st.number_input(f"{label} Qty", min_value=0, step=1, key=f"qty_{uploaded_file.name}_{i}")
-                        if count > 0:
-                            custom_chargers.append({
-                                "Name": label,
-                                "Power_kW": kw,
-                                "Quantity": count,
-                                "Total_kW": kw * count
-                            })
+                all_chargers = []
+                if custom_test:
+                    st.markdown("### ⚙️ Multi-Charger Input")
 
-                    if custom_chargers:
-                        summary_df = pd.DataFrame(custom_chargers)
-                        st.markdown("### 📋 Charger Input Summary")
-                        st.dataframe(summary_df)
+                    num_l2_types = st.number_input("How many Level 2 charger types?", min_value=0, max_value=5, step=1, key=f"l2count_{uploaded_file.name}")
+                    num_l3_types = st.number_input("How many Level 3 charger types?", min_value=0, max_value=5, step=1, key=f"l3count_{uploaded_file.name}")
 
-                    total_custom_kw = sum(c["Total_kW"] for c in custom_chargers)
-                    result["Custom_Load_kW"] = total_custom_kw
-                    result["Total_Load_kW"] = result["Max_Power_kW"] + result["Custom_Load_kW"]
+                    if num_l2_types > 0:
+                        st.markdown("#### 🔋 Level 2 Charger Types")
+                        for i in range(num_l2_types):
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                kw = st.number_input(f"L2 Charger {i+1} Power (kW)", min_value=1.0, step=0.1, key=f"l2_kw_{uploaded_file.name}_{i}")
+                            with col2:
+                                qty = st.number_input(f"L2 Charger {i+1} Quantity", min_value=0, step=1, key=f"l2_qty_{uploaded_file.name}_{i}")
+                            if qty > 0:
+                                all_chargers.append({
+                                    "Type": f"L2-{i+1}", "Power_kW": kw, "Quantity": qty, "Total_kW": kw * qty
+                                })
+
+                    if num_l3_types > 0:
+                        st.markdown("#### ⚡ Level 3 Charger Types")
+                        for i in range(num_l3_types):
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                kw = st.number_input(f"L3 Charger {i+1} Power (kW)", min_value=10.0, step=1.0, key=f"l3_kw_{uploaded_file.name}_{i}")
+                            with col2:
+                                qty = st.number_input(f"L3 Charger {i+1} Quantity", min_value=0, step=1, key=f"l3_qty_{uploaded_file.name}_{i}")
+                            if qty > 0:
+                                all_chargers.append({
+                                    "Type": f"L3-{i+1}", "Power_kW": kw, "Quantity": qty, "Total_kW": kw * qty
+                                })
+
+                # Charger summary and load
+                if all_chargers:
+                    summary_df = pd.DataFrame(all_chargers)
+                    st.markdown("### 📋 Charger Summary")
+                    st.dataframe(summary_df)
+                    total_custom_kw = sum(c["Total_kW"] for c in all_chargers)
                 else:
-                    result["Custom_Load_kW"] = 0
-                    result["Total_Load_kW"] = result["Max_Power_kW"]
+                    total_custom_kw = 0
 
-                # === Always Show Analysis Below ===
+                result["Custom_Load_kW"] = total_custom_kw
+                result["Total_Load_kW"] = result["Max_Power_kW"] + result["Custom_Load_kW"]
+
+                # Show result
                 st.markdown("### 📊 Load Analysis")
                 st.dataframe(result)
 
-                # === Capacity Validation
                 if (result["Total_Load_kW"] > result["Capacity_kW"]).any():
-                    st.error("❌ Load exceeds capacity at one or more hours.")
+                    st.error("❌ Total load exceeds site capacity at one or more hours.")
                 else:
-                    st.success("✅ Load fits within available capacity.")
+                    st.success("✅ Load is within available capacity.")
 
-                # === Plot
+                # Plot
                 fig2, ax2 = plt.subplots()
-                ax2.plot(result["Hour"], result["Total_Load_kW"], label="Total Load (Usage + Custom)", color="red")
+                ax2.plot(result["Hour"], result["Total_Load_kW"], label="Total Load", color="red")
                 ax2.plot(result["Hour"], result["Capacity_kW"], label="Capacity", color="green", linestyle="--")
                 ax2.set_xlabel("Hour")
                 ax2.set_ylabel("Power (kW)")
@@ -219,9 +230,12 @@ with tab1:
                 ax2.legend()
                 st.pyplot(fig2)
 
-                # === Export
+                # Download CSV
                 csv = result.to_csv(index=False).encode("utf-8")
                 st.download_button("📥 Download CSV", data=csv, file_name=f"{uploaded_file.name}_analysis.csv")
+
+            except Exception as e:
+                st.error(f"❌ Failed to process {uploaded_file.name}: {str(e)}")
 
 
 
