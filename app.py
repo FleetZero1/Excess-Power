@@ -196,7 +196,6 @@ with tab1:
                                     "Type": f"L3-{i+1}", "Power_kW": kw, "Quantity": qty, "Total_kW": kw * qty
                                 })
 
-                # Charger summary and load
                 if all_chargers:
                     summary_df = pd.DataFrame(all_chargers)
                     st.markdown("### 📋 Charger Summary")
@@ -208,7 +207,12 @@ with tab1:
                 result["Custom_Load_kW"] = total_custom_kw
                 result["Total_Load_kW"] = result["Max_Power_kW"] + result["Custom_Load_kW"]
 
-                # Show result
+                st.markdown("### 📝 Chart Labels & Titles")
+                custom_title = st.text_input("Chart Title", value=f"{uploaded_file.name} – Load vs Capacity", key=f"title_{uploaded_file.name}")
+                custom_subtitle = st.text_input("Subtitle (optional)", value="", key=f"subtitle_{uploaded_file.name}")
+                custom_xlabel = st.text_input("X-axis Label", value="Hour", key=f"xlabel_{uploaded_file.name}")
+                custom_ylabel = st.text_input("Y-axis Label", value="Power (kW)", key=f"ylabel_{uploaded_file.name}")
+
                 st.markdown("### 📊 Load Analysis")
                 st.dataframe(result)
 
@@ -217,25 +221,18 @@ with tab1:
                 else:
                     st.success("✅ Load is within available capacity.")
 
-                # Plot
                 fig2, ax2 = plt.subplots()
                 ax2.plot(result["Hour"], result["Total_Load_kW"], label="Total Load", color="red")
                 ax2.plot(result["Hour"], result["Capacity_kW"], label="Capacity", color="green", linestyle="--")
-                ax2.set_xlabel("Hour")
-                ax2.set_ylabel("Power (kW)")
+                ax2.set_xlabel(custom_xlabel)
+                ax2.set_ylabel(custom_ylabel)
                 ax2.set_xticks(range(0, 24, tick_spacing))
                 if use_y_limits and y_max > y_min:
                     ax2.set_ylim(y_min, y_max)
-                ax2.set_title(f"{uploaded_file.name} – Load vs Capacity")
-                ax2.legend()
-                st.pyplot(fig2)
+                ax2.set_title(custom_title, fontsize=14, fontweight="bold", color="#14213D")
+                if custom_subtitle:
+                    ax2.text(0.5, 1.02, custom_s_
 
-                # Download CSV
-                csv = result.to_csv(index=False).encode("utf-8")
-                st.download_button("📥 Download CSV", data=csv, file_name=f"{uploaded_file.name}_analysis.csv")
-
-            except Exception as e:
-                st.error(f"❌ Failed to process {uploaded_file.name}: {str(e)}")
 
 
 
