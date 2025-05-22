@@ -108,6 +108,7 @@ def process_wide_format(df):
         return None, f"Error in wide format: {e}"
 
 # === TAB 1: ANALYZER ===
+# === TAB 1: ANALYZER ===
 with tab1:
     uploaded_files = st.file_uploader("📁 Upload load profile files", type=["csv", "xlsx"], accept_multiple_files=True)
 
@@ -185,53 +186,7 @@ with tab1:
 
                     if num_l3_types > 0:
                         st.markdown("#### ⚡ Level 3 Charger Types")
-                        for i in range(num_l3_types):
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                kw = st.number_input(f"L3 Charger {i+1} Power (kW)", min_value=10.0, step=1.0, key=f"l3_kw_{uploaded_file.name}_{i}")
-                            with col2:
-                                qty = st.number_input(f"L3 Charger {i+1} Quantity", min_value=0, step=1, key=f"l3_qty_{uploaded_file.name}_{i}")
-                            if qty > 0:
-                                all_chargers.append({
-                                    "Type": f"L3-{i+1}", "Power_kW": kw, "Quantity": qty, "Total_kW": kw * qty
-                                })
-
-                if all_chargers:
-                    summary_df = pd.DataFrame(all_chargers)
-                    st.markdown("### 📋 Charger Summary")
-                    st.dataframe(summary_df)
-                    total_custom_kw = sum(c["Total_kW"] for c in all_chargers)
-                else:
-                    total_custom_kw = 0
-
-                result["Custom_Load_kW"] = total_custom_kw
-                result["Total_Load_kW"] = result["Max_Power_kW"] + result["Custom_Load_kW"]
-
-                st.markdown("### 📝 Chart Labels & Titles")
-                custom_title = st.text_input("Chart Title", value=f"{uploaded_file.name} – Load vs Capacity", key=f"title_{uploaded_file.name}")
-                custom_subtitle = st.text_input("Subtitle (optional)", value="", key=f"subtitle_{uploaded_file.name}")
-                custom_xlabel = st.text_input("X-axis Label", value="Hour", key=f"xlabel_{uploaded_file.name}")
-                custom_ylabel = st.text_input("Y-axis Label", value="Power (kW)", key=f"ylabel_{uploaded_file.name}")
-
-                st.markdown("### 📊 Load Analysis")
-                st.dataframe(result)
-
-                if (result["Total_Load_kW"] > result["Capacity_kW"]).any():
-                    st.error("❌ Total load exceeds site capacity at one or more hours.")
-                else:
-                    st.success("✅ Load is within available capacity.")
-
-                fig2, ax2 = plt.subplots()
-                ax2.plot(result["Hour"], result["Total_Load_kW"], label="Total Load", color="red")
-                ax2.plot(result["Hour"], result["Capacity_kW"], label="Capacity", color="green", linestyle="--")
-                ax2.set_xlabel(custom_xlabel)
-                ax2.set_ylabel(custom_ylabel)
-                ax2.set_xticks(range(0, 24, tick_spacing))
-                if use_y_limits and y_max > y_min:
-                    ax2.set_ylim(y_min, y_max)
-                ax2.set_title(custom_title, fontsize=14, fontweight="bold", color="#14213D")
-                if custom_subtitle:
-                    ax2.text(0.5, 1.02, custom_s_
+                        for i in range(
 
 
 
