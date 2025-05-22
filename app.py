@@ -319,16 +319,16 @@ Example:
     }
     st.dataframe(pd.DataFrame(sample_15min))
 
-with st.expander("🕐 View 1-Hour Interval Format Example"):
-    st.markdown("""
-#### ✅ 1-Hour Format Details
-- 24 time intervals per day (e.g., `0:00`, `1:00`, ..., `23:00`)
-- Simpler format, suitable for overview-level analysis
-- Each row represents one day, and each cell contains energy use in **kWh**
+       with st.expander("🕐 View 1-Hour Interval Format Example"):
+        st.markdown("""
+        #### ✅ 1-Hour Format Details
+        - 24 time intervals per day (e.g., `0:00`, `1:00`, ..., `23:00`)
+        - Simpler format, suitable for overview-level analysis
+        - Each row represents one day, and each cell contains energy use in **kWh**
 
-Example:
-    """)
-    sample_1hr = {
+        Example:
+        """)
+        sample_1hr = {
         "Date": ["2024-06-01", "2024-06-02"],
         "0:00": [2.4, 2.0],
         "1:00": [2.1, 1.8],
