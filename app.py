@@ -300,24 +300,24 @@ The most common format is the **Interval Format** (recommended), where:
 
 Each cell should contain energy use in **kWh**.
     """)
-with st.expander("🕒 View 15-Minute Interval Format Example"):
-    st.markdown("""
-#### ✅ 15-Minute Format Details
-- 96 time intervals per day (e.g., `0:00`, `0:15`, ..., `23:45`)
-- Ideal for detailed analysis with higher resolution
-- Each row represents one day, and each cell contains energy use in **kWh**
+       with st.expander("🕒 View 15-Minute Interval Format Example"):
+       st.markdown("""
+       #### ✅ 15-Minute Format Details
+        - 96 time intervals per day (e.g., `0:00`, `0:15`, ..., `23:45`)
+        - Ideal for detailed analysis with higher resolution
+        - Each row represents one day, and each cell contains energy use in **kWh**
 
-Example:
-    """)
-    sample_15min = {
+        Example:
+        """)
+        sample_15min = {
         "Date": ["2024-06-01", "2024-06-02"],
         "0:00": [1.2, 1.1],
         "0:15": [1.0, 0.9],
         "0:30": [1.3, 1.2],
         "0:45": [1.1, 1.0],
         "1:00": [1.5, 1.4]
-    }
-    st.dataframe(pd.DataFrame(sample_15min))
+        }
+        st.dataframe(pd.DataFrame(sample_15min))
 
        with st.expander("🕐 View 1-Hour Interval Format Example"):
         st.markdown("""
