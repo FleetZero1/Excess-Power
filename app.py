@@ -279,41 +279,120 @@ with tab1:
 with tab2:
     st.header("📁 How to Use This Tool")
     st.markdown("""
-    This tool helps you calculate **available power** at EV charging sites using load profile files and utility power input.
+Welcome to the **EV Charger Feasibility Dashboard** — a user-friendly tool designed to help evaluate how many EV chargers your facility can support based on your existing power usage.
 
-    ---
-    ### 🛠 Step-by-Step Instructions
-
-    **1. Prepare your data**
-    - Use 15-minute or 1-hour interval load profile files (CSV or Excel)
-    - Ensure the first column is the **Date** and the rest are time intervals (e.g., `0:15`, `1:00`, ...)
-
-    **2. Upload files**
-    - Upload one or more usage files using the uploader under the **"📊 Analyzer" tab**
-
-    **3. Enter site details**
-    - For each site, enter the **utility power capacity (in kW)**
-    - Set your Level 2 and Level 3 charger sizes (these apply to all files)
-
-    **4. Review output**
-    - The tool will calculate:
-        - Hourly maximum demand
-        - Excess available power
-        - Number of Level 2 / Level 3 chargers that can be supported
-    - View line charts and download analysis CSVs
-
-    ---
-    ### 🧮 Calculation Rules
-
-    - 15-min kWh data → `Power = Energy / 0.25`
-    - 1-hour kWh data → `Power = Energy / 1.0`
-    - Chargers = `Excess Power / Charger kW`
-
-    ---
-    ### 📎 Need Help?
-
-    Contact **Fleet Zero** at: [info@fleetzero.ai](mailto:info@fleetzero.ai)
+This guide walks you through how to upload your data and interpret results — no prior technical experience required.
     """)
+
+    st.markdown("---")
+    st.subheader("🛠️ Step-by-Step Guide")
+
+    st.markdown("### 1. Prepare Your Load Data")
+    st.markdown("""
+You will need electricity usage data from your facility — typically from your utility provider or metering software.
+
+Accepted file types: **CSV** or **Excel (XLSX)**
+
+The most common format is the **Interval Format** (recommended), where:
+- The **first column** is the date (e.g., `2024-06-01`)
+- The **following columns** are time intervals throughout the day (e.g., `0:00`, `0:15`, `0:30`, ...)
+
+Each cell should contain energy use in **kWh**.
+    """)
+
+    # Show sample data in an expander
+    with st.expander("📂 Click to view an example of the correct Interval Format"):
+        st.markdown("""
+The table below shows an example of a correctly formatted file:
+        """)
+        sample_data = {
+            "Date": ["2024-06-01", "2024-06-02"],
+            "0:00": [1.2, 1.1],
+            "0:15": [1.0, 0.9],
+            "0:30": [1.3, 1.2],
+            "0:45": [1.1, 1.0],
+            "1:00": [1.5, 1.4]
+        }
+        st.dataframe(pd.DataFrame(sample_data))
+
+        # Add a download button for a template
+        with open("sample_template.xlsx", "rb") as f:
+            st.download_button("📥 Download Example Template", f, file_name="EV_Load_Template.xlsx")
+
+     st.markdown("### 2. Upload Your Load Profile File")
+    st.markdown("""
+Once your data is ready, proceed to the **📊 Analyzer** tab to begin your analysis.
+
+- Click the **“Browse files”** button to upload one or more load profile files.
+- The system supports **CSV** and **Excel (.xlsx)** formats.
+- Upon upload, the platform will automatically detect whether your file uses an **Interval Format** or a **Timestamp Format** and process it accordingly.
+
+> ⚠️ **Important:** Each file should contain data for one facility. Upload multiple files if you have multiple locations to assess.
+
+---
+
+### 3. Provide Site-Specific Inputs
+
+After uploading, the dashboard will prompt you to enter the following information for each site:
+
+- 🏢 **Utility Power Capacity (kW)**  
+  Enter the total power capacity available from the electric utility at that site. This will serve as the baseline for assessing how much charging infrastructure can be supported.
+
+- 🔋 **EV Charger Specifications (Optional)**  
+  You may choose to simulate various EV charger types. Define:
+  - The **number and power rating** (in kW) of **Level 2 chargers** (typically 6–19 kW).
+  - The **number and power rating** of **Level 3 chargers** (typically 50–350 kW).
+
+This custom input allows you to model realistic infrastructure scenarios and test different configurations.
+
+---
+
+### 4. Analyze the Results
+
+Once site inputs are complete, the dashboard will process the data and generate the following outputs:
+
+#### 📈 Load Profile Visualization
+- A 24-hour line chart showing **existing power usage** overlaid with **available utility capacity**.
+- If custom charger configurations are entered, a **total load line** will be added to reflect the combined power demand.
+
+#### 📊 Capacity Summary Bar Chart
+- A bar chart comparing:
+  - Total utility power supply
+  - Maximum observed site demand
+  - Remaining excess capacity available for charging
+
+#### 🧾 Tabular Summary
+- A table showing hourly **maximum load**, **excess capacity**, and **simulated charger load** for easy reference and comparison.
+
+#### 📥 Export Option
+- Download the full analysis as a **CSV report**, including all computed metrics and hourly values.
+
+> ✅ **Pro Tip:** Use this data to inform infrastructure planning, electrical upgrades, or charging schedules.
+
+---
+
+### 5. Interpreting the Output
+
+- If the **total site load (existing + chargers)** stays **within** your utility capacity:  
+  ✅ Your site can likely support the proposed charger configuration without upgrades.
+
+- If the load **exceeds** the capacity at any hour:  
+  ❌ Additional electrical upgrades, smart charging strategies, or load shifting may be required.
+
+The charts and warnings will help highlight where and when issues may arise.
+
+---
+
+### 📞 Need Assistance?
+
+If you’re unsure how to format your data or interpret results, we’re happy to assist.
+
+📧 Contact: [info@fleetzero.ai](mailto:info@fleetzero.ai)  
+🌐 Website: [fleetzero.ai](https://fleetzero.ai)
+
+We’re here to support your transition to a cleaner, more efficient electric fleet.
+    """)
+
 
 # === TAB 3: ABOUT ===
 with tab3:
