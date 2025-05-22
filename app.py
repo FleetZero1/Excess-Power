@@ -277,12 +277,12 @@ with tab1:
 
 with tab2:
     st.header("📁 How to Use This Tool")
-    st.caption("Learn how to upload and analyze your facility’s load data to estimate EV charging feasibility.")
+    st.caption("A step-by-step guide to help you upload and analyze your facility's load data for EV charger planning.")
 
     st.markdown("""
-Welcome to the **EV Charger Feasibility Dashboard** — a user-friendly tool designed to help evaluate how many EV chargers your facility can support based on your existing power usage.
+Welcome to the **EV Charger Feasibility Dashboard** — a user-friendly platform designed to help evaluate how many electric vehicle (EV) chargers your facility can support based on existing power usage patterns.
 
-This guide walks you through how to upload your data and interpret results — no prior technical experience required.
+This section will guide you through preparing your data, uploading it to the dashboard, and understanding the results — no technical experience required.
     """)
 
     st.markdown("---")
@@ -290,134 +290,108 @@ This guide walks you through how to upload your data and interpret results — n
 
     st.markdown("### 1. Prepare Your Load Data")
     st.markdown("""
-You will need electricity usage data from your facility — typically from your utility provider or metering software.
+To begin, you will need historical electricity usage data for your facility. This data is usually provided by your utility company or energy management system.
 
-Accepted file types: **CSV** or **Excel (XLSX)**
-
-The most common format is the **Interval Format** (recommended), where:
-- The **first column** is the date (e.g., `2024-06-01`)
-- The **following columns** are time intervals throughout the day (e.g., `0:00`, `0:15`, `0:30`, ...)
-
-Each cell should contain energy use in **kWh**.
+- **Accepted file types**: `.csv` or `.xlsx` (Excel)
+- **Accepted formats**:
+  - **15-minute intervals**: 96 columns of time intervals per day
+  - **1-hour intervals**: 24 columns of time intervals per day
+- The **first column** must be labeled `Date` and contain the calendar date (e.g., `2024-06-01`)
+- All other columns should represent **time intervals** (e.g., `0:00`, `1:00`, etc.), with each cell containing energy use in **kWh**
     """)
-       with st.expander("🕒 View 15-Minute Interval Format Example"):
-       st.markdown("""
-       #### ✅ 15-Minute Format Details
-        - 96 time intervals per day (e.g., `0:00`, `0:15`, ..., `23:45`)
-        - Ideal for detailed analysis with higher resolution
-        - Each row represents one day, and each cell contains energy use in **kWh**
 
-        Example:
+    with st.expander("🕒 View 15-Minute Interval Format Example"):
+        st.markdown("""
+#### ✅ 15-Minute Format Details
+- 96 time intervals per day (e.g., `0:00`, `0:15`, ..., `23:45`)
+- Ideal for detailed analysis with higher resolution
+- Each row represents one day, and each cell contains energy use in **kWh**
+
+Example:
         """)
         sample_15min = {
-        "Date": ["2024-06-01", "2024-06-02"],
-        "0:00": [1.2, 1.1],
-        "0:15": [1.0, 0.9],
-        "0:30": [1.3, 1.2],
-        "0:45": [1.1, 1.0],
-        "1:00": [1.5, 1.4]
+            "Date": ["2024-06-01", "2024-06-02"],
+            "0:00": [1.2, 1.1],
+            "0:15": [1.0, 0.9],
+            "0:30": [1.3, 1.2],
+            "0:45": [1.1, 1.0],
+            "1:00": [1.5, 1.4]
         }
         st.dataframe(pd.DataFrame(sample_15min))
 
-       with st.expander("🕐 View 1-Hour Interval Format Example"):
+    with st.expander("🕐 View 1-Hour Interval Format Example"):
         st.markdown("""
-        #### ✅ 1-Hour Format Details
-        - 24 time intervals per day (e.g., `0:00`, `1:00`, ..., `23:00`)
-        - Simpler format, suitable for overview-level analysis
-        - Each row represents one day, and each cell contains energy use in **kWh**
+#### ✅ 1-Hour Format Details
+- 24 time intervals per day (e.g., `0:00`, `1:00`, ..., `23:00`)
+- Simpler format, suitable for overview-level analysis
+- Each row represents one day, and each cell contains energy use in **kWh**
 
-        Example:
+Example:
         """)
         sample_1hr = {
-        "Date": ["2024-06-01", "2024-06-02"],
-        "0:00": [2.4, 2.0],
-        "1:00": [2.1, 1.8],
-        "2:00": [2.5, 2.2],
-        "3:00": [2.3, 2.1],
-        "4:00": [2.6, 2.4]
-    }
-    st.dataframe(pd.DataFrame(sample_1hr))
-
-
-        import os
-        template_path = "sample_template.xlsx"
-        if os.path.exists(template_path):
-            with open(template_path, "rb") as f:
-                st.download_button("📥 Download Example Template", f, file_name="EV_Load_Template.xlsx")
-        else:
-            st.warning("⚠️ Sample template not found. Please ensure 'sample_template.xlsx' is in the app folder.")
+            "Date": ["2024-06-01", "2024-06-02"],
+            "0:00": [2.4, 2.0],
+            "1:00": [2.1, 1.8],
+            "2:00": [2.5, 2.2],
+            "3:00": [2.3, 2.1],
+            "4:00": [2.6, 2.4]
+        }
+        st.dataframe(pd.DataFrame(sample_1hr))
 
     st.markdown("### 2. Upload Your Load Profile File")
     st.markdown("""
-Once your data is ready, proceed to the **📊 Analyzer** tab to begin your analysis.
+Navigate to the **📊 Analyzer** tab to begin your analysis.
 
-- Click the **“Browse files”** button to upload one or more load profile files.
-- The system supports **CSV** and **Excel (.xlsx)** formats.
-- Upon upload, the platform will automatically detect whether your file uses an **Interval Format** or a **Timestamp Format** and process it accordingly.
+- Use the **file uploader** to select one or more `.csv` or `.xlsx` files
+- The system will automatically detect whether your file uses a 15-minute or 1-hour interval format
+- You may upload multiple files to analyze multiple locations or facilities
 
-> ⚠️ **Important:** Each file should contain data for one facility. Upload multiple files if you have multiple locations to assess.
-""")
+> ⚠️ Each file should contain load data for a single facility.
+    """)
 
-    st.markdown("---")
-    st.markdown("### 3. Provide Site-Specific Inputs")
+    st.markdown("### 3. Provide Site Information")
     st.markdown("""
-After uploading, the dashboard will prompt you to enter the following information for each site:
+Once the file is uploaded, the dashboard will prompt you to enter key site details:
 
-- 🏢 **Utility Power Capacity (kW)**  
-  Enter the total power capacity available from the electric utility at that site. This will serve as the baseline for assessing how much charging infrastructure can be supported.
+- **Utility Power Capacity (kW)**: The maximum available power from the grid for the facility
+- **Optional Charger Configuration**: Define the number and size of Level 2 or Level 3 EV chargers to simulate their impact on total load
 
-- 🔋 **EV Charger Specifications (Optional)**  
-  You may choose to simulate various EV charger types. Define:
-  - The **number and power rating** (in kW) of **Level 2 chargers** (typically 6–19 kW).
-  - The **number and power rating** of **Level 3 chargers** (typically 50–350 kW).
-""")
+This information allows the system to estimate whether your facility can support the proposed charging infrastructure.
+    """)
 
-    st.markdown("---")
     st.markdown("### 4. Analyze the Results")
     st.markdown("""
-Once site inputs are complete, the dashboard will process the data and generate the following outputs:
+After entering your inputs, the dashboard will generate:
 
-#### 📈 Load Profile Visualization
-- A 24-hour line chart showing **existing power usage** overlaid with **available utility capacity**.
-- If custom charger configurations are entered, a **total load line** will be added to reflect the combined power demand.
+- 📈 A 24-hour load chart comparing site usage vs. available capacity
+- 📊 A summary bar chart highlighting maximum load, capacity, and excess power
+- 📋 A detailed table showing hourly values for:
+  - Maximum existing load
+  - Charger load (if entered)
+  - Total load vs. capacity
+  - Available excess power
 
-#### 📊 Capacity Summary Bar Chart
-- A bar chart comparing:
-  - Total utility power supply
-  - Maximum observed site demand
-  - Remaining excess capacity available for charging
+You can also **download the analysis as a CSV report** for recordkeeping or further use.
+    """)
 
-#### 🧾 Tabular Summary
-- A table showing hourly **maximum load**, **excess capacity**, and **simulated charger load** for easy reference and comparison.
-
-#### 📥 Export Option
-- Download the full analysis as a **CSV report**, including all computed metrics and hourly values.
-
-> ✅ **Pro Tip:** Use this data to inform infrastructure planning, electrical upgrades, or charging schedules.
-""")
-
-    st.markdown("---")
-    st.markdown("### 5. Interpreting the Output")
+    st.markdown("### 5. Interpret the Output")
     st.markdown("""
-- If the **total site load (existing + chargers)** stays **within** your utility capacity:  
-  ✅ Your site can likely support the proposed charger configuration without upgrades.
+- ✅ If the **total load** (existing + chargers) stays within the utility capacity, your site can likely support the chargers
+- ❌ If the load exceeds capacity at any hour, you may need electrical upgrades or smart charging strategies
 
-- If the load **exceeds** the capacity at any hour:  
-  ❌ Additional electrical upgrades, smart charging strategies, or load shifting may be required.
-
-The charts and warnings will help highlight where and when issues may arise.
-""")
+Visual indicators and warning messages will help you quickly identify any constraints.
+    """)
 
     st.markdown("---")
     st.markdown("### 📞 Need Assistance?")
     st.markdown("""
-If you’re unsure how to format your data or interpret results, we’re happy to assist.
+If you're unsure how to structure your file or interpret results, we're here to help.
 
-📧 Contact: [info@fleetzero.ai](mailto:info@fleetzero.ai)  
-🌐 Website: [fleetzero.ai](https://fleetzero.ai)
+📧 **Email**: [info@fleetzero.ai](mailto:info@fleetzero.ai)  
+🌐 **Website**: [fleetzero.ai](https://fleetzero.ai)
 
-We’re here to support your transition to a cleaner, more efficient electric fleet.
-""")
+Let us support your journey toward a more sustainable and electrified fleet.
+    """)
 
 
 # === TAB 3: ABOUT ===
