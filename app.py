@@ -275,9 +275,10 @@ with tab1:
             except Exception as e:
                 st.error(f"❌ Failed to process {uploaded_file.name}: {str(e)}")
 
-# === TAB 2: HOW TO USE ===
 with tab2:
     st.header("📁 How to Use This Tool")
+    st.caption("Learn how to upload and analyze your facility’s load data to estimate EV charging feasibility.")
+
     st.markdown("""
 Welcome to the **EV Charger Feasibility Dashboard** — a user-friendly tool designed to help evaluate how many EV chargers your facility can support based on your existing power usage.
 
@@ -300,11 +301,8 @@ The most common format is the **Interval Format** (recommended), where:
 Each cell should contain energy use in **kWh**.
     """)
 
-    # Show sample data in an expander
     with st.expander("📂 Click to view an example of the correct Interval Format"):
-        st.markdown("""
-The table below shows an example of a correctly formatted file:
-        """)
+        st.markdown("The table below shows an example of a correctly formatted file:")
         sample_data = {
             "Date": ["2024-06-01", "2024-06-02"],
             "0:00": [1.2, 1.1],
@@ -315,11 +313,15 @@ The table below shows an example of a correctly formatted file:
         }
         st.dataframe(pd.DataFrame(sample_data))
 
-        # Add a download button for a template
-        with open("sample_template.xlsx", "rb") as f:
-            st.download_button("📥 Download Example Template", f, file_name="EV_Load_Template.xlsx")
+        import os
+        template_path = "sample_template.xlsx"
+        if os.path.exists(template_path):
+            with open(template_path, "rb") as f:
+                st.download_button("📥 Download Example Template", f, file_name="EV_Load_Template.xlsx")
+        else:
+            st.warning("⚠️ Sample template not found. Please ensure 'sample_template.xlsx' is in the app folder.")
 
-     st.markdown("### 2. Upload Your Load Profile File")
+    st.markdown("### 2. Upload Your Load Profile File")
     st.markdown("""
 Once your data is ready, proceed to the **📊 Analyzer** tab to begin your analysis.
 
@@ -328,11 +330,11 @@ Once your data is ready, proceed to the **📊 Analyzer** tab to begin your anal
 - Upon upload, the platform will automatically detect whether your file uses an **Interval Format** or a **Timestamp Format** and process it accordingly.
 
 > ⚠️ **Important:** Each file should contain data for one facility. Upload multiple files if you have multiple locations to assess.
+""")
 
----
-
-### 3. Provide Site-Specific Inputs
-
+    st.markdown("---")
+    st.markdown("### 3. Provide Site-Specific Inputs")
+    st.markdown("""
 After uploading, the dashboard will prompt you to enter the following information for each site:
 
 - 🏢 **Utility Power Capacity (kW)**  
@@ -342,13 +344,11 @@ After uploading, the dashboard will prompt you to enter the following informatio
   You may choose to simulate various EV charger types. Define:
   - The **number and power rating** (in kW) of **Level 2 chargers** (typically 6–19 kW).
   - The **number and power rating** of **Level 3 chargers** (typically 50–350 kW).
+""")
 
-This custom input allows you to model realistic infrastructure scenarios and test different configurations.
-
----
-
-### 4. Analyze the Results
-
+    st.markdown("---")
+    st.markdown("### 4. Analyze the Results")
+    st.markdown("""
 Once site inputs are complete, the dashboard will process the data and generate the following outputs:
 
 #### 📈 Load Profile Visualization
@@ -368,11 +368,11 @@ Once site inputs are complete, the dashboard will process the data and generate 
 - Download the full analysis as a **CSV report**, including all computed metrics and hourly values.
 
 > ✅ **Pro Tip:** Use this data to inform infrastructure planning, electrical upgrades, or charging schedules.
+""")
 
----
-
-### 5. Interpreting the Output
-
+    st.markdown("---")
+    st.markdown("### 5. Interpreting the Output")
+    st.markdown("""
 - If the **total site load (existing + chargers)** stays **within** your utility capacity:  
   ✅ Your site can likely support the proposed charger configuration without upgrades.
 
@@ -380,18 +380,18 @@ Once site inputs are complete, the dashboard will process the data and generate 
   ❌ Additional electrical upgrades, smart charging strategies, or load shifting may be required.
 
 The charts and warnings will help highlight where and when issues may arise.
+""")
 
----
-
-### 📞 Need Assistance?
-
+    st.markdown("---")
+    st.markdown("### 📞 Need Assistance?")
+    st.markdown("""
 If you’re unsure how to format your data or interpret results, we’re happy to assist.
 
 📧 Contact: [info@fleetzero.ai](mailto:info@fleetzero.ai)  
 🌐 Website: [fleetzero.ai](https://fleetzero.ai)
 
 We’re here to support your transition to a cleaner, more efficient electric fleet.
-    """)
+""")
 
 
 # === TAB 3: ABOUT ===
