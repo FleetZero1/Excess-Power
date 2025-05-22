@@ -300,18 +300,44 @@ The most common format is the **Interval Format** (recommended), where:
 
 Each cell should contain energy use in **kWh**.
     """)
+with st.expander("🕒 View 15-Minute Interval Format Example"):
+    st.markdown("""
+#### ✅ 15-Minute Format Details
+- 96 time intervals per day (e.g., `0:00`, `0:15`, ..., `23:45`)
+- Ideal for detailed analysis with higher resolution
+- Each row represents one day, and each cell contains energy use in **kWh**
 
-    with st.expander("📂 Click to view an example of the correct Interval Format"):
-        st.markdown("The table below shows an example of a correctly formatted file:")
-        sample_data = {
-            "Date": ["2024-06-01", "2024-06-02"],
-            "0:00": [1.2, 1.1],
-            "0:15": [1.0, 0.9],
-            "0:30": [1.3, 1.2],
-            "0:45": [1.1, 1.0],
-            "1:00": [1.5, 1.4]
-        }
-        st.dataframe(pd.DataFrame(sample_data))
+Example:
+    """)
+    sample_15min = {
+        "Date": ["2024-06-01", "2024-06-02"],
+        "0:00": [1.2, 1.1],
+        "0:15": [1.0, 0.9],
+        "0:30": [1.3, 1.2],
+        "0:45": [1.1, 1.0],
+        "1:00": [1.5, 1.4]
+    }
+    st.dataframe(pd.DataFrame(sample_15min))
+
+with st.expander("🕐 View 1-Hour Interval Format Example"):
+    st.markdown("""
+#### ✅ 1-Hour Format Details
+- 24 time intervals per day (e.g., `0:00`, `1:00`, ..., `23:00`)
+- Simpler format, suitable for overview-level analysis
+- Each row represents one day, and each cell contains energy use in **kWh**
+
+Example:
+    """)
+    sample_1hr = {
+        "Date": ["2024-06-01", "2024-06-02"],
+        "0:00": [2.4, 2.0],
+        "1:00": [2.1, 1.8],
+        "2:00": [2.5, 2.2],
+        "3:00": [2.3, 2.1],
+        "4:00": [2.6, 2.4]
+    }
+    st.dataframe(pd.DataFrame(sample_1hr))
+
 
         import os
         template_path = "sample_template.xlsx"
