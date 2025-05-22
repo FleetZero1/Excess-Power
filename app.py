@@ -186,13 +186,94 @@ with tab1:
 
                     if num_l3_types > 0:
                         st.markdown("#### ⚡ Level 3 Charger Types")
-                        for i in range(
+                        for i in range(num_l3_types):
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                kw = st.number_input(f"L3 Charger {i+1} Power (kW)", min_value=10.0, step=1.0, key=f"l3_kw_{uploaded_file.name}_{i}")
+                            with col2:
+                                qty = st.number_input(f"L3 Charger {i+1} Quantity", min_value=0, step=1, key=f"l3_qty_{uploaded_file.name}_{i}")
+                            if qty > 0:
+                                all_chargers.append({
+                                    "Type": f"L3-{i+1}", "Power_kW": kw, "Quantity": qty, "Total_kW": kw * qty
+                                })
 
+                if all_chargers:
+                    summary_df = pd.DataFrame(all_chargers)
+                    st.markdown("### 📋 Charger Summary")
+                    st.dataframe(summary_df)
+                    total_custom_kw = sum(c["Total_KW"] for c in all_chargers)
+                else:
+                    total_custom_kw = 0
 
+                result["Custom_Load_kW"] = total_custom_kw
+                result["Total_Load_kW"] = result["Max_Power_kW"] + result["Custom_Load_kW"]
 
+                st.markdown("### 📝 Chart Labels & Titles")
+                custom_title = st.text_input("Chart Title", value=f"{uploaded_file.name} – Load vs Capacity", key=f"title_{uploaded_file.name}")
+                custom_subtitle = st.text_input("Subtitle (optional)", value="", key=f"subtitle_{uploaded_file.name}")
+                custom_xlabel = st.text_input("X-axis Label", value="Hour", key=f"xlabel_{uploaded_file.name}")
+                custom_ylabel = st.text_input("Y-axis Label", value="Power (kW)", key=f"ylabel_{uploaded_file.name}")
 
+                st.markdown("### 📊 Load Analysis")
+                st.dataframe(result)
 
+                if (result["Total_Load_kW"] > result["Capacity_kW"]).any():
+                    st.error("❌ Total load exceeds site capacity at one or more hours.")
+                else:
+                    st.success("✅ Load is within available capacity.")
 
+                fig2, ax2 = plt.subplots()
+                ax2.plot(result["Hour"], result["Total_Load_kW"], label="Total Load", color="red")
+                ax2.plot(result["Hour"], result["Capacity_kW"], label="Capacity", color="green", linestyle="--")
+                ax2.set_xlabel(custom_xlabel)
+                ax2.set_ylabel(custom_ylabel)
+                ax2.set_xticks(range(0, 24, tick_spacing))
+                if use_y_limits and y_max > y_min:
+                    ax2.set_ylim(y_min, y_max)
+                ax2.set_title(custom_title, fontsize=14, fontweight="bold", color="#14213D")
+                if custom_subtitle:
+                    ax2.text(0.5, 1.02, custom_subtitle, transform=ax2.transAxes, ha="center", fontsize=10, color="gray")
+                ax2.legend()
+                st.pyplot(fig2)
+
+                st.markdown("### 📊 Summary Bar Chart – Labels")
+                bar_title = st.text_input("Bar Chart Title", value="Power Capacity Summary", key=f"bar_title_{uploaded_file.name}")
+                bar_ylabel = st.text_input("Bar Chart Y-axis Label", value="Power (kW)", key=f"bar_ylabel_{uploaded_file.name}")
+                bar_label_1 = st.text_input("Label for Bar 1", value="Utility Power Supply", key=f"bar1_{uploaded_file.name}")
+                bar_label_2 = st.text_input("Label for Bar 2", value="Max. Power Consumption", key=f"bar2_{uploaded_file.name}")
+                bar_label_3 = st.text_input("Label for Bar 3", value="Excess Power", key=f"bar3_{uploaded_file.name}")
+
+                def plot_summary_bar_chart(capacity_kw, max_usage_kw, labels, title, ylabel):
+                    excess_kw = capacity_kw - max_usage_kw
+                    values = [capacity_kw, max_usage_kw, excess_kw]
+                    colors = ["#C0C0C0", "#C0C0C0", "#A7DB47"]
+
+                    fig, ax = plt.subplots(figsize=(6, 4))
+                    bars = ax.bar(labels, values, color=colors, width=0.6)
+                    for bar in bars:
+                        yval = bar.get_height()
+                        ax.text(bar.get_x() + bar.get_width() / 2, yval + 5, f"{yval:.1f}", ha="center", fontweight="bold")
+
+                    ax.set_ylabel(ylabel, fontweight="bold")
+                    ax.set_title(title, fontweight="bold")
+                    ax.set_ylim(0, max(values) * 1.2)
+                    ax.yaxis.grid(True, linestyle="--", linewidth=1, color="gray", alpha=0.5)
+                    ax.set_facecolor("white")
+                    fig.patch.set_facecolor("white")
+                    ax.spines["top"].set_visible(False)
+                    ax.spines["right"].set_visible(False)
+                    return fig
+
+                bar_labels = [bar_label_1, bar_label_2, bar_label_3]
+                max_usage = result["Max_Power_kW"].max()
+                fig_bar = plot_summary_bar_chart(capacity_kw, max_usage, bar_labels, bar_title, bar_ylabel)
+                st.pyplot(fig_bar)
+
+                csv = result.to_csv(index=False).encode("utf-8")
+                st.download_button("📥 Download CSV", data=csv, file_name=f"{uploaded_file.name}_analysis.csv")
+
+            except Exception as e:
+                st.error(f"❌ Failed to process {uploaded_file.name}: {str(e)}")
 
 # === TAB 2: HOW TO USE ===
 with tab2:
