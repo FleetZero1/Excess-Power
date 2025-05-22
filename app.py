@@ -201,7 +201,7 @@ with tab1:
                     summary_df = pd.DataFrame(all_chargers)
                     st.markdown("### 📋 Charger Summary")
                     st.dataframe(summary_df)
-                    total_custom_kw = sum(c["Total_KW"] for c in all_chargers)
+                    total_custom_kw = sum(c["Total_kW"] for c in all_chargers)
                 else:
                     total_custom_kw = 0
 
